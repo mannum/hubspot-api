@@ -34,7 +34,7 @@ jobs:
 
       # Run black
       - name: run black
-        run: black --verbose
+        run: black ./ --verbose
 
       # Run isort
       - name: run isort
