@@ -130,7 +130,7 @@ class HubSpotClient:
 
     def find_deal(self, property_name, value):
         pipeline_filter = Filter(
-            property_name='pipeline', operator="EQ", value=self._pipeline_id
+            property_name="pipeline", operator="EQ", value=self._pipeline_id
         )
         query = Filter(property_name=property_name, operator="EQ", value=value)
         filter_groups = [FilterGroup(filters=[pipeline_filter, query])]

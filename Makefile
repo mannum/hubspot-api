@@ -2,8 +2,8 @@
 
 
 current-branch := $(shell git rev-parse --abbrev-ref HEAD)
-ifneq ($(current-branch), "master")
-	base-branch := origin/master
+ifneq ($(current-branch), "main")
+	base-branch := origin/main
 else
 	base-branch := @^
 endif
@@ -34,10 +34,10 @@ endif
 black:
 ifdef base-branch
 	@echo "\nRunning Black formatter on all Python file changes between working directory and branch '$(base-branch)'...\n"
-	@$(apply_to_diff) black --verbose
+	@$(apply_to_diff) black ./ --verbose
 else
 	@echo "\nRunning Black formatter on all Python files changed since last commit...\n"
-	@black --verbose
+	@black ./ --verbose
 endif
 
 py-lint:
