@@ -27,7 +27,9 @@ jobs:
       
       # setup env
       - name: setup env
-        run: make setup
+        run: |
+            pip install --upgrade pip
+            pip install -r requirements.txt
 
       # Run linting
       - name: run linting
