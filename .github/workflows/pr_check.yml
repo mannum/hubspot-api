@@ -20,7 +20,7 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3 
       
       # setup env
       - name: setup env
@@ -42,4 +42,7 @@ jobs:
 
       # Runs a set of commands using the runners shell
       - name: Run pytests
+        env:
+          HUBSPOT_TEST_API_KEY: ${{ secrets.HUBSPOT_TEST_API_KEY }}
+          HUBSPOT_TEST_PIPELINE_ID: ${{ secrets.HUBSPOT_TEST_PIPELINE_ID }}
         run: python -m pytest
