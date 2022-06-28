@@ -3,8 +3,8 @@ import time
 
 import pytest
 
-from hs_api.settings.settings import HUBSPOT_TEST_API_KEY, HUBSPOT_TEST_PIPELINE_ID
 from hs_api.api.hubspot_api import HubSpotClient
+from hs_api.settings.settings import HUBSPOT_TEST_API_KEY, HUBSPOT_TEST_PIPELINE_ID
 
 # Test Pipeline
 
@@ -57,7 +57,7 @@ def test_create_and_search_contact(hubspot_client):
         first_name=test_first_name,
         last_name=test_last_name,
         phone=test_phone,
-        company_name=TEST_COMPANY_NAME,
+        company=TEST_COMPANY_NAME,
     )
 
     assert contact_result
@@ -112,7 +112,7 @@ def test_create_contact_and_associated_company_with_auto_created_company(
         first_name=test_first_name,
         last_name=test_last_name,
         phone=test_phone,
-        company_name=TEST_COMPANY_NAME,
+        company=TEST_COMPANY_NAME,
     )
 
     assert result
@@ -151,7 +151,7 @@ def test_create_contact_and_associated_company_without_auto_created_company(
         first_name=test_first_name,
         last_name=test_last_name,
         phone=test_phone,
-        company_name=TEST_COMPANY_NAME,
+        company=TEST_COMPANY_NAME,
     )
 
     assert result
@@ -252,7 +252,7 @@ def test_create_deal_for_contact(hubspot_client):
         first_name=test_first_name,
         last_name=test_last_name,
         phone=test_phone,
-        company_name=TEST_COMPANY_NAME,
+        company=TEST_COMPANY_NAME,
     )
 
     # Create the deal
