@@ -42,9 +42,6 @@ class HubSpotClient:
             "deals", self._pipeline_id
         ).results
         return sorted(results, key=lambda x: x.display_order)
-        # return OrderedDict(
-        #     ((x.id, x) for x in sorted(results, key=lambda x: x.display_order))
-        # )
 
     @property
     def create_lookup(self):
@@ -148,30 +145,23 @@ class HubSpotClient:
         )
         return response.results
 
-    def create_contact(
-        self, email, first_name, last_name, phone=None, company_name=None
-    ):
-        properties = {
-            "email": email,
-            "firstname": first_name,
-            "lastname": last_name,
-            "phone": phone,
-            "company": company_name,
-        }
+    def create_contact(self, email, first_name, last_name, **properties):
+        properties = dict(
+            email=email, firstname=first_name, lastname=last_name, **properties
+        )
 
         response = self._create("contact", properties)
         return response
 
-    def create_company(self, name, domain=None):
-        properties = {
-            "name": name,
-            "domain": domain,
-        }
+    def create_company(self, name, domain=None, **properties):
+        properties = dict(name=name, domain=domain, **properties)
 
         response = self._create("company", properties)
         return response
 
-    def create_deal(self, name, amount, stage=None, company_id=None, contact_id=None):
+    def create_deal(
+        self, name, stage=None, company_id=None, contact_id=None, **properties
+    ):
         """
         Creates a new deal at the given stage or at the landing stage
         if not provided.
@@ -179,11 +169,7 @@ class HubSpotClient:
         between the deal and company/contact.
         """
         stage = stage or self.pipeline_stages[0].id
-        properties = {
-            "dealname": name,
-            "amount": amount,
-            "dealstage": stage,
-        }
+        properties = dict(dealname=name, dealstage=stage, **properties)
 
         response = self._create("deal", properties)
 
@@ -273,15 +259,17 @@ class HubSpotClient:
         return result
 
     def create_contact_and_company(
-        self, email, first_name, last_name, company_name, phone=None
+        self, email, first_name, last_name, company, **properties
     ):
         """
         Creates the contact and associated company. If the company is auto generated from
         the domain, it will update that company name if its empty. Otherwise, it will create
         a new company to associate to the contact.
         """
-        output = {}
-        output["contact"] = self.create_contact(email, first_name, last_name, phone)
+        output = dict()
+        output["contact"] = self.create_contact(
+            email, first_name, last_name, company=company, **properties
+        )
         new_contact_id = output["contact"].id
 
         # Check if company has been created and assigned to contact already
@@ -290,12 +278,12 @@ class HubSpotClient:
         if result:
             company_id = result[0].id
             # Update company name if null
-            company = self.find_company("hs_object_id", company_id)[0]
-            if company.properties["name"] is None:
-                output["company"] = self.update_company(company_id, name=company_name)
+            company_result = self.find_company("hs_object_id", company_id)[0]
+            if company_result.properties["name"] is None:
+                output["company"] = self.update_company(company_id, name=company)
 
         else:
-            output["company"] = self.create_company(name=company_name)
+            output["company"] = self.create_company(name=company)
             self.create_association(
                 from_object_type="contact",
                 from_object_id=output["contact"].id,
@@ -303,35 +291,3 @@ class HubSpotClient:
                 to_object_id=output["company"].id,
             )
         return output
-
-
-if __name__ == "__main__":
-    hubspot_client = HubSpotClient()
-
-    result = hubspot_client.find_company("name", "superscript limited")
-
-    print(result)
-
-    # result = hubspot_client.create_company('test api company', 'testapicompany.com')
-    #
-    # print(result)
-
-    result = hubspot_client.find_contact("email", "lee.joseph@example.net")
-
-    print(result[0].properties)
-
-    # create_result = hubspot_client.create_contact(
-    #     email='test_api3@test_api.ai',
-    #     first_name='test_api2',
-    #     last_name='api_test2',
-    #     phone='07123456789',
-    #     company_name='test api company',
-    # )
-    #
-    # print(create_result)
-
-    result = hubspot_client.find_deal("dealname", "Chris Hughes")
-
-    print(result)
-
-    print(hubspot_client.pipeline_stages)
