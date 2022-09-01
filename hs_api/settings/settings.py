@@ -1,5 +1,5 @@
-from pathlib import Path
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -18,9 +18,9 @@ TEST_ROOT = PROJECT_ROOT.parent / "test"
 TEST_FILES_ROOT = TEST_ROOT / "test_files"
 
 # Hubspot API/ Default pipeline
-HUBSPOT_API_KEY = os.environ.get("HUBSPOT_API_KEY")
+HUBSPOT_ACCESS_TOKEN = os.environ.get("HUBSPOT_ACCESS_TOKEN")
 HUBSPOT_PIPELINE_ID = os.environ.get("HUBS_PIPELINE_ID")
 
 # Hubspot Test API/Pipeline
-HUBSPOT_TEST_API_KEY = os.environ.get("HUBSPOT_TEST_API_KEY")
+HUBSPOT_TEST_ACCESS_TOKEN = os.environ.get("HUBSPOT_TEST_ACCESS_TOKEN")
 HUBSPOT_TEST_PIPELINE_ID = os.environ.get("HUBSPOT_TEST_PIPELINE_ID")

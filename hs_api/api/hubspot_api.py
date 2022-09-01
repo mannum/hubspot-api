@@ -1,6 +1,7 @@
 import time
 
 from hubspot import HubSpot
+from hubspot.auth.oauth import ApiException
 from hubspot.crm.contacts import (
     Filter,
     FilterGroup,
@@ -8,9 +9,8 @@ from hubspot.crm.contacts import (
     PublicObjectSearchRequest,
     SimplePublicObjectInput,
 )
-from hubspot.crm.contacts.exceptions import ApiException
 
-from hs_api.settings.settings import HUBSPOT_API_KEY, HUBSPOT_PIPELINE_ID
+from hs_api.settings.settings import HUBSPOT_ACCESS_TOKEN, HUBSPOT_PIPELINE_ID
 
 ASSOCIATION_TYPE_LOOKUP = {
     "contact-company": 1,
@@ -28,13 +28,15 @@ def get_association_id(from_object_type, to_object_type):
 
 
 class HubSpotClient:
-    def __init__(self, api_key=HUBSPOT_API_KEY, pipeline_id=HUBSPOT_PIPELINE_ID):
-        self._api_key = api_key
+    def __init__(
+        self, access_token=HUBSPOT_ACCESS_TOKEN, pipeline_id=HUBSPOT_PIPELINE_ID
+    ):
+        self._access_token = access_token
         self._pipeline_id = pipeline_id
         self._client = self.init_client()
 
     def init_client(self):
-        return HubSpot(api_key=self._api_key)
+        return HubSpot(access_token=self._access_token)
 
     @property
     def pipeline_stages(self):

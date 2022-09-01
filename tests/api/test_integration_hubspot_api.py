@@ -4,7 +4,7 @@ import time
 import pytest
 
 from hs_api.api.hubspot_api import HubSpotClient
-from hs_api.settings.settings import HUBSPOT_TEST_API_KEY, HUBSPOT_TEST_PIPELINE_ID
+from hs_api.settings.settings import HUBSPOT_TEST_ACCESS_TOKEN, HUBSPOT_TEST_PIPELINE_ID
 
 # Test Pipeline
 
@@ -33,7 +33,7 @@ def clear_down_test_objects(client):
 @pytest.fixture()
 def hubspot_client():
     client = HubSpotClient(
-        api_key=HUBSPOT_TEST_API_KEY, pipeline_id=HUBSPOT_TEST_PIPELINE_ID
+        access_token=HUBSPOT_TEST_ACCESS_TOKEN, pipeline_id=HUBSPOT_TEST_PIPELINE_ID
     )
     try:
         yield client
