@@ -281,3 +281,27 @@ def test_create_deal_for_contact(hubspot_client):
     association = hubspot_client.deal_associations(deal_result.id, "contact")
     assert association
     assert association[0].id == contact_result.id
+
+
+def test_find_owner_by_email(hubspot_client):
+    # This test relies on owner_id "49185288" existing in the testing environment.
+    owner = hubspot_client.find_owner("email", "lovely-whole.abcaebiz@mailosaur.io")
+    assert owner
+    assert owner.id == "49185288"
+
+
+def test_find_owner_not_found_returns_none(hubspot_client):
+    owner = hubspot_client.find_owner("email", "email@doesnotexist.com")
+    assert owner is None
+
+
+def test_find_owner_by_id(hubspot_client):
+    # This test relies on owner_id "49185288" existing in the testing environment.
+    owner = hubspot_client.find_owner("id", "49185288")
+    assert owner
+    assert owner.email == "lovely-whole.abcaebiz@mailosaur.io"
+
+
+def test_find_owner_without_id_or_email(hubspot_client):
+    with pytest.raises(NameError):
+        owner = hubspot_client.find_owner("some_id", "some_value")

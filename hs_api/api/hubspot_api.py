@@ -153,6 +153,31 @@ class HubSpotClient:
         )
         return response.results
 
+    def _find_owner_by_email(self, email):
+        response = self._client.crm.owners.owners_api.get_page_with_http_info(
+            email=email
+        )
+        result = None
+        # Returns the first result found if any as emails are unique
+        if response[0].results:
+            result = response[0].results[0]
+        return result
+
+    def _find_owner_by_id(self, owner_id):
+        response = self._client.crm.owners.owners_api.get_by_id(owner_id=owner_id)
+        return response
+
+    def find_owner(self, property_name, value):
+        if property_name not in ("id", "email"):
+            raise NameError(
+                f"'{property_name}' is not valid for property_name. "
+                f"Must be one of 'id' or 'email'."
+            )
+        if property_name == "id":
+            return self._find_owner_by_id(owner_id=value)
+        if property_name == "email":
+            return self._find_owner_by_email(email=value)
+
     def create_contact(self, email, first_name, last_name, **properties):
         properties = dict(
             email=email, firstname=first_name, lastname=last_name, **properties
