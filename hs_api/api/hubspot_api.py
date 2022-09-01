@@ -1,6 +1,7 @@
 import time
 
 from hubspot import HubSpot
+from hubspot.auth.oauth import ApiException
 from hubspot.crm.contacts import (
     Filter,
     FilterGroup,
@@ -8,9 +9,8 @@ from hubspot.crm.contacts import (
     PublicObjectSearchRequest,
     SimplePublicObjectInput,
 )
-from hubspot.crm.contacts.exceptions import ApiException
 
-from hs_api.settings.settings import HUBSPOT_API_KEY, HUBSPOT_PIPELINE_ID
+from hs_api.settings.settings import HUBSPOT_ACCESS_TOKEN, HUBSPOT_PIPELINE_ID
 
 ASSOCIATION_TYPE_LOOKUP = {
     "contact-company": 1,
@@ -28,18 +28,26 @@ def get_association_id(from_object_type, to_object_type):
 
 
 class HubSpotClient:
-    def __init__(self, api_key=HUBSPOT_API_KEY, pipeline_id=HUBSPOT_PIPELINE_ID):
-        self._api_key = api_key
+    def __init__(
+        self, access_token=HUBSPOT_ACCESS_TOKEN, pipeline_id=HUBSPOT_PIPELINE_ID
+    ):
+        self._access_token = access_token
         self._pipeline_id = pipeline_id
         self._client = self.init_client()
 
+    @property
+    def pipeline_id(self):
+        if self._pipeline_id is None:
+            raise ValueError("pipeline_id cannot be None")
+        return self._pipeline_id
+
     def init_client(self):
-        return HubSpot(api_key=self._api_key)
+        return HubSpot(access_token=self._access_token)
 
     @property
     def pipeline_stages(self):
         results = self._client.crm.pipelines.pipeline_stages_api.get_all(
-            "deals", self._pipeline_id
+            "deals", self.pipeline_id
         ).results
         return sorted(results, key=lambda x: x.display_order)
 
@@ -127,7 +135,7 @@ class HubSpotClient:
 
     def find_deal(self, property_name, value):
         pipeline_filter = Filter(
-            property_name="pipeline", operator="EQ", value=self._pipeline_id
+            property_name="pipeline", operator="EQ", value=self.pipeline_id
         )
         query = Filter(property_name=property_name, operator="EQ", value=value)
         filter_groups = [FilterGroup(filters=[pipeline_filter, query])]
@@ -144,6 +152,31 @@ class HubSpotClient:
             public_object_search_request=public_object_search_request,
         )
         return response.results
+
+    def _find_owner_by_email(self, email):
+        response = self._client.crm.owners.owners_api.get_page_with_http_info(
+            email=email
+        )
+        result = None
+        # Returns the first result found if any as emails are unique
+        if response[0].results:
+            result = response[0].results[0]
+        return result
+
+    def _find_owner_by_id(self, owner_id):
+        response = self._client.crm.owners.owners_api.get_by_id(owner_id=owner_id)
+        return response
+
+    def find_owner(self, property_name, value):
+        if property_name not in ("id", "email"):
+            raise NameError(
+                f"'{property_name}' is not valid for property_name. "
+                f"Must be one of 'id' or 'email'."
+            )
+        if property_name == "id":
+            return self._find_owner_by_id(owner_id=value)
+        if property_name == "email":
+            return self._find_owner_by_email(email=value)
 
     def create_contact(self, email, first_name, last_name, **properties):
         properties = dict(

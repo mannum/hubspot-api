@@ -4,7 +4,7 @@ import time
 import pytest
 
 from hs_api.api.hubspot_api import HubSpotClient
-from hs_api.settings.settings import HUBSPOT_TEST_API_KEY, HUBSPOT_TEST_PIPELINE_ID
+from hs_api.settings.settings import HUBSPOT_TEST_ACCESS_TOKEN, HUBSPOT_TEST_PIPELINE_ID
 
 # Test Pipeline
 
@@ -33,12 +33,18 @@ def clear_down_test_objects(client):
 @pytest.fixture()
 def hubspot_client():
     client = HubSpotClient(
-        api_key=HUBSPOT_TEST_API_KEY, pipeline_id=HUBSPOT_TEST_PIPELINE_ID
+        access_token=HUBSPOT_TEST_ACCESS_TOKEN, pipeline_id=HUBSPOT_TEST_PIPELINE_ID
     )
     try:
         yield client
     finally:
         clear_down_test_objects(client)
+
+
+def test_pipeline_id_none_raises_value_error():
+    with pytest.raises(ValueError):
+        client = HubSpotClient(access_token=HUBSPOT_TEST_ACCESS_TOKEN, pipeline_id=None)
+        client.pipeline_stages
 
 
 def test_create_and_search_contact(hubspot_client):
@@ -275,3 +281,27 @@ def test_create_deal_for_contact(hubspot_client):
     association = hubspot_client.deal_associations(deal_result.id, "contact")
     assert association
     assert association[0].id == contact_result.id
+
+
+def test_find_owner_by_email(hubspot_client):
+    # This test relies on owner_id "49185288" existing in the testing environment.
+    owner = hubspot_client.find_owner("email", "lovely-whole.abcaebiz@mailosaur.io")
+    assert owner
+    assert owner.id == "49185288"
+
+
+def test_find_owner_not_found_returns_none(hubspot_client):
+    owner = hubspot_client.find_owner("email", "email@doesnotexist.com")
+    assert owner is None
+
+
+def test_find_owner_by_id(hubspot_client):
+    # This test relies on owner_id "49185288" existing in the testing environment.
+    owner = hubspot_client.find_owner("id", "49185288")
+    assert owner
+    assert owner.email == "lovely-whole.abcaebiz@mailosaur.io"
+
+
+def test_find_owner_without_id_or_email(hubspot_client):
+    with pytest.raises(NameError):
+        hubspot_client.find_owner("some_id", "some_value")
