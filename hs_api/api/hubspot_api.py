@@ -35,13 +35,19 @@ class HubSpotClient:
         self._pipeline_id = pipeline_id
         self._client = self.init_client()
 
+    @property
+    def pipeline_id(self):
+        if self._pipeline_id is None:
+            raise ValueError("pipeline_id cannot be None")
+        return self._pipeline_id
+
     def init_client(self):
         return HubSpot(access_token=self._access_token)
 
     @property
     def pipeline_stages(self):
         results = self._client.crm.pipelines.pipeline_stages_api.get_all(
-            "deals", self._pipeline_id
+            "deals", self.pipeline_id
         ).results
         return sorted(results, key=lambda x: x.display_order)
 
@@ -129,7 +135,7 @@ class HubSpotClient:
 
     def find_deal(self, property_name, value):
         pipeline_filter = Filter(
-            property_name="pipeline", operator="EQ", value=self._pipeline_id
+            property_name="pipeline", operator="EQ", value=self.pipeline_id
         )
         query = Filter(property_name=property_name, operator="EQ", value=value)
         filter_groups = [FilterGroup(filters=[pipeline_filter, query])]

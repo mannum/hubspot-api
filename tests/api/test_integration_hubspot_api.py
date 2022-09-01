@@ -41,6 +41,12 @@ def hubspot_client():
         clear_down_test_objects(client)
 
 
+def test_pipeline_id_none_raises_value_error():
+    with pytest.raises(ValueError):
+        client = HubSpotClient(access_token=HUBSPOT_TEST_ACCESS_TOKEN, pipeline_id=None)
+        client.pipeline_stages
+
+
 def test_create_and_search_contact(hubspot_client):
 
     test_first_name = f"{UNIQUE_ID} first name"
