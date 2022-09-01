@@ -304,4 +304,4 @@ def test_find_owner_by_id(hubspot_client):
 
 def test_find_owner_without_id_or_email(hubspot_client):
     with pytest.raises(NameError):
-        owner = hubspot_client.find_owner("some_id", "some_value")
+        hubspot_client.find_owner("some_id", "some_value")
