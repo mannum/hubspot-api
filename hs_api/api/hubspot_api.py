@@ -1,4 +1,3 @@
-import datetime
 import time
 
 from hubspot import HubSpot
@@ -96,8 +95,10 @@ class HubSpotClient:
         pipeline_id = pipeline_id or self.pipeline_id
 
         pipelines = []
-        for object_type in ['TICKET', 'DEAL']:
-            response = self._client.crm.pipelines.pipelines_api.get_all(object_type=object_type).results
+        for object_type in ["TICKET", "DEAL"]:
+            response = self._client.crm.pipelines.pipelines_api.get_all(
+                object_type=object_type
+            ).results
             for pipeline in response:
                 pipeline.object_type = object_type
             pipelines += response
@@ -105,7 +106,6 @@ class HubSpotClient:
         if not return_all_pipelines:
             pipelines = [x for x in pipelines if x.id == pipeline_id]
         return pipelines
-
 
     def _find(self, object_name, property_name, value, sort):
         query = Filter(property_name=property_name, operator="EQ", value=value)
@@ -201,7 +201,9 @@ class HubSpotClient:
         if property_name == "email":
             return self._find_owner_by_email(email=value)
 
-    def find_all_tickets(self, filter_name=None, filter_value=None, properties=None, pipeline_id=None):
+    def find_all_tickets(
+        self, filter_name=None, filter_value=None, properties=None, pipeline_id=None
+    ):
         """
         Finds and returns all tickets, using the filter name and value as the
         high watermark for the tickets to return. If None are provided, it
@@ -216,29 +218,25 @@ class HubSpotClient:
         that pipeline, otherwise it returns tickets from all pipelines.
         """
         if filter_name is None and filter_value is None:
-            filter_name = 'hs_lastmodifieddate'
+            filter_name = "hs_lastmodifieddate"
 
         after = 0
         while after is not None:
             # If the filter is on the modified date, we want to convert the given
             # date to an epoch
             formatted_filter_value = filter_value
-            if filter_name == 'hs_lastmodifieddate':
+            if filter_name == "hs_lastmodifieddate":
                 formatted_filter_value = convert_date_to_epoch(filter_value)
 
             query = Filter(
-                property_name=filter_name,
-                operator="GT",
-                value=formatted_filter_value
+                property_name=filter_name, operator="GT", value=formatted_filter_value
             )
 
             filters = [query]
 
             if pipeline_id:
                 pipeline_query = Filter(
-                    property_name='hs_pipeline',
-                    operator="EQ",
-                    value=pipeline_id
+                    property_name="hs_pipeline", operator="EQ", value=pipeline_id
                 )
                 filters.append(pipeline_query)
 
@@ -247,14 +245,13 @@ class HubSpotClient:
             public_object_search_request = PublicObjectSearchRequest(
                 limit=BATCH_LIMITS,
                 filter_groups=filter_groups,
-                sorts=[{
-                    "propertyName": filter_name,
-                    "direction": "ASCENDING"
-                }],
+                sorts=[{"propertyName": filter_name, "direction": "ASCENDING"}],
                 properties=properties,
                 after=after,
             )
-            response = self._client.crm.tickets.search_api.do_search(public_object_search_request=public_object_search_request)
+            response = self._client.crm.tickets.search_api.do_search(
+                public_object_search_request=public_object_search_request
+            )
             yield response.results
 
             # Update after to page onto next batch if there is next otherwise break as
@@ -414,51 +411,29 @@ class HubSpotClient:
 
 def convert_date_to_epoch(date):
     if date:
-        start_millisecond_value = (int(date.timestamp()) * 1000) + int(date.microsecond / 1000)
+        start_millisecond_value = (int(date.timestamp()) * 1000) + int(
+            date.microsecond / 1000
+        )
     else:
         start_millisecond_value = 0
 
     return start_millisecond_value
 
 
-if __name__ == '__main__':
-    HUBSPOT_ACCESS_TOKEN_PROD='pat-na1-5accc4b9-d04e-4235-91cf-b5cf5d81eeaa'
+if __name__ == "__main__":
+    HUBSPOT_ACCESS_TOKEN_PROD = "pat-na1-5accc4b9-d04e-4235-91cf-b5cf5d81eeaa"
     hc = HubSpotClient(
         access_token=HUBSPOT_ACCESS_TOKEN_PROD,
     )
 
-    p = hc._client.crm.pipelines.pipelines_api.get_all('TICKET')
-    print(len(p.results))
-    for result in p.results:
-        print(result.id, result.label)
-        if result.id != '0':
-            continue
-        print(result)
-        break
-
-    d = hc._client.crm.pipelines.pipelines_api.get_all('DEALS')
-
-
-    # formatted_filter_value = filter_value
-    # if filter_name == 'hs_lastmodifieddate':
-    #     formatted_filter_value = convert_date_to_epoch(filter_value)
-
-    query = Filter(
-        property_name='hs_object_id',
-        operator="GT",
-        value='7997014836'
-    )
+    query = Filter(property_name="hs_object_id", operator="GT", value="7997014836")
     filter_groups = [FilterGroup(filters=[query])]
 
     public_object_search_request = PublicObjectSearchRequest(
         limit=50,
         filter_groups=filter_groups,
-        sorts=[{
-            "propertyName": 'hs_object_id',
-            "direction": "ASCENDING"
-        }],
+        sorts=[{"propertyName": "hs_object_id", "direction": "ASCENDING"}],
         properties=None,
-
     )
 
     # d = hc._client.crm.deals.search_api.do_search(public_object_search_request)
@@ -480,5 +455,3 @@ if __name__ == '__main__':
     #
     # d = hc._client.crm.deals.basic_api.get_by_id('7997014837')
     # print(d)
-
-
