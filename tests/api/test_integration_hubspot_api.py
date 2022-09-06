@@ -3,7 +3,7 @@ import time
 
 import pytest
 
-from hs_api.api.hubspot_api import HubSpotClient
+from hs_api.api.hubspot_api import BATCH_LIMITS, HubSpotClient
 from hs_api.settings.settings import (
     HUBSPOT_TEST_ACCESS_TOKEN,
     HUBSPOT_TEST_PIPELINE_ID,
@@ -317,7 +317,7 @@ def test_find_all_tickets_returns_batches(hubspot_client):
     # Assert that the first batch contains the limit of records
     # for a batch
     initial_batch = next(tickets)
-    assert len(initial_batch) == 100
+    assert len(initial_batch) == BATCH_LIMITS
 
     following_batch = next(tickets)
 
@@ -424,15 +424,82 @@ def test_pipeline_details_for_all_pipelines(hubspot_client):
     assert len(pipelines) > 1
 
 
-def ignore_test_find_all_deals_returns_batches(hubspot_client):
-    tickets = hubspot_client.find_all_tickets()
+def test_find_all_deals_returns_batches(hubspot_client):
+    deals = hubspot_client.find_all_deals()
 
     # Assert that the first batch contains the limit of records
     # for a batch
-    initial_batch = next(tickets)
-    assert len(initial_batch) == 100
+    initial_batch = next(deals)
+    assert len(initial_batch) == BATCH_LIMITS
 
-    following_batch = next(tickets)
+    following_batch = next(deals)
 
     # Assert that the next batch follows on from the previous
     assert following_batch[0].updated_at > initial_batch[-1].updated_at
+
+
+def test_find_all_deals_returns_default_properties(hubspot_client):
+    deals = hubspot_client.find_all_deals()
+    actual = next(deals)[0].properties
+    expected = {
+        "amount": None,
+        "closedate": None,
+        "createdate": None,
+        "dealname": None,
+        "dealstage": None,
+        "hs_lastmodifieddate": None,
+        "hs_object_id": None,
+        "pipeline": None,
+    }
+
+    # We don't care about the actual values just the keys
+    assert actual.keys() == expected.keys()
+
+
+def test_find_all_deals_returns_given_properties(hubspot_client):
+    deals = hubspot_client.find_all_deals(
+        properties=["hs_lastmodifieddate", "hs_object_id"]
+    )
+    actual = next(deals)[0].properties
+    expected = {
+        "hs_lastmodifieddate": None,
+        "hs_object_id": None,
+        # createdate is always returned
+        "createdate": None,
+    }
+
+    # We don't care about the actual values just the keys
+    assert actual.keys() == expected.keys()
+
+
+def test_find_all_deals_returns_after_given_hs_lastmodifieddate(hubspot_client):
+    all_deals = hubspot_client.find_all_deals()
+    filter_value = next(all_deals)[0].updated_at
+    filtered_deals = hubspot_client.find_all_deals(
+        filter_name="hs_lastmodifieddate",
+        filter_value=filter_value,
+    )
+
+    # Assert that the first record of the returned filtered list starts
+    # after the original returned list
+    assert next(filtered_deals)[0].updated_at > filter_value
+
+
+def test_find_all_deals_returns_after_given_hs_object_id(hubspot_client):
+    all_deals = hubspot_client.find_all_deals()
+    filter_value = next(all_deals)[0].id
+    filtered_deals = hubspot_client.find_all_deals(
+        filter_name="hs_object_id",
+        filter_value=filter_value,
+    )
+
+    # Assert that the first record of the returned filtered list starts
+    # after the original returned list
+    assert next(filtered_deals)[0].id > filter_value
+
+
+def test_find_all_deals_returns_for_given_pipeline_id(hubspot_client):
+    all_deals = hubspot_client.find_all_deals(pipeline_id=HUBSPOT_TEST_PIPELINE_ID)
+    actual_pipeline = next(all_deals)[0].properties["pipeline"]
+
+    assert actual_pipeline == HUBSPOT_TEST_PIPELINE_ID

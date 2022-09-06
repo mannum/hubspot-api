@@ -3,6 +3,7 @@ import time
 from hubspot import HubSpot
 from hubspot.auth.oauth import ApiException
 from hubspot.crm.contacts import (
+    BatchReadInputSimplePublicObjectId,
     Filter,
     FilterGroup,
     PublicGdprDeleteInput,
@@ -21,7 +22,7 @@ ASSOCIATION_TYPE_LOOKUP = {
     "company-deal": 6,
 }
 
-BATCH_LIMITS = 100
+BATCH_LIMITS = 50
 
 
 def get_association_id(from_object_type, to_object_type):
@@ -213,7 +214,7 @@ class HubSpotClient:
         watermark for the next batch to be returned until there are no more
         records or batches to return.
         Also returns the default properties if none are given, otherwise it will
-        the given properties, where they exist as properties.
+        return the given properties, where they exist as properties.
         If a pipeline_id is given, this will be used to filter tickets specific to
         that pipeline, otherwise it returns tickets from all pipelines.
         """
@@ -258,6 +259,79 @@ class HubSpotClient:
             # there are no more batches to iterate over.
             if response.paging:
                 after = response.paging.next.after
+            else:
+                after = None
+
+    def find_all_deals(
+        self, filter_name=None, filter_value=None, properties=None, pipeline_id=None
+    ):
+        """
+        Finds and returns all deals, using the filter name and value as the
+        high watermark for the deals to return. If None are provided, it
+        returns everything, defaulting to using the 'hs_lastmodifieddate' and
+        0 epoch.
+        This iterates over batches, using the previous batch as the new high
+        watermark for the next batch to be returned until there are no more
+        records or batches to return.
+        Also returns the default properties if none are given, otherwise it will
+        return the given properties, where they exist as properties.
+        If a pipeline_id is given, this will be used to filter deals specific to
+        that pipeline, otherwise it returns deals from all pipelines.
+        """
+        if filter_name is None and filter_value is None:
+            filter_name = "hs_lastmodifieddate"
+
+        after = 0
+        while after is not None:
+            # If the filter is on the modified date, we want to convert the given
+            # date to an epoch
+            formatted_filter_value = filter_value
+            if filter_name == "hs_lastmodifieddate":
+                formatted_filter_value = convert_date_to_epoch(filter_value)
+
+            query = Filter(
+                property_name=filter_name, operator="GT", value=formatted_filter_value
+            )
+
+            filters = [query]
+
+            if pipeline_id:
+                pipeline_query = Filter(
+                    property_name="pipeline", operator="EQ", value=pipeline_id
+                )
+                filters.append(pipeline_query)
+
+            filter_groups = [FilterGroup(filters=filters)]
+
+            # The first search/response is to get the deal ids that will be passed to
+            # the second api call
+            public_object_search_request = PublicObjectSearchRequest(
+                limit=BATCH_LIMITS,
+                filter_groups=filter_groups,
+                sorts=[{"propertyName": filter_name, "direction": "ASCENDING"}],
+                after=after,
+            )
+            initial_response = self._client.crm.deals.search_api.do_search(
+                public_object_search_request=public_object_search_request
+            )
+
+            # Pull out ids to pass onto batch request to get detailed response
+            batches = [{"id": x.id} for x in initial_response.results]
+
+            batch_public_object = BatchReadInputSimplePublicObjectId(
+                inputs=batches,
+                properties=properties,
+                # properties_with_history=["dealstage", 'dealname']
+            )
+
+            response = self._client.crm.deals.batch_api.read(batch_public_object)
+            # import pdb; pdb.set_trace()
+            yield response.results
+
+            # Update after to page onto next batch if there is next otherwise break as
+            # there are no more batches to iterate over.
+            if initial_response.paging:
+                after = initial_response.paging.next.after
             else:
                 after = None
 
@@ -418,40 +492,3 @@ def convert_date_to_epoch(date):
         start_millisecond_value = 0
 
     return start_millisecond_value
-
-
-if __name__ == "__main__":
-    HUBSPOT_ACCESS_TOKEN_PROD = "pat-na1-5accc4b9-d04e-4235-91cf-b5cf5d81eeaa"
-    hc = HubSpotClient(
-        access_token=HUBSPOT_ACCESS_TOKEN_PROD,
-    )
-
-    query = Filter(property_name="hs_object_id", operator="GT", value="7997014836")
-    filter_groups = [FilterGroup(filters=[query])]
-
-    public_object_search_request = PublicObjectSearchRequest(
-        limit=50,
-        filter_groups=filter_groups,
-        sorts=[{"propertyName": "hs_object_id", "direction": "ASCENDING"}],
-        properties=None,
-    )
-
-    # d = hc._client.crm.deals.search_api.do_search(public_object_search_request)
-    # #
-    # # print(d.results[0])
-    # # print(d.paging)
-    #
-    # from hubspot.crm.deals.models import BatchReadInputSimplePublicObjectId
-    # from hubspot.crm.deals.models import SimplePublicObjectId
-    #
-    #
-    # batches = [{'id': x.id} for x in d.results]
-    #
-    # request_i = BatchReadInputSimplePublicObjectId(inputs=batches, properties_with_history=["dealstage", 'dealname'])
-    #
-    # full = hc._client.crm.deals.batch_api.read(request_i)
-    #
-    # print(full.results[0])
-    #
-    # d = hc._client.crm.deals.basic_api.get_by_id('7997014837')
-    # print(d)
