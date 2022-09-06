@@ -3,6 +3,7 @@ import time
 from hubspot import HubSpot
 from hubspot.auth.oauth import ApiException
 from hubspot.crm.contacts import (
+    BatchReadInputSimplePublicObjectId,
     Filter,
     FilterGroup,
     PublicGdprDeleteInput,
@@ -20,6 +21,8 @@ ASSOCIATION_TYPE_LOOKUP = {
     "deal-company": 5,
     "company-deal": 6,
 }
+
+BATCH_LIMITS = 50
 
 
 def get_association_id(from_object_type, to_object_type):
@@ -82,6 +85,29 @@ class HubSpotClient:
             "deal": self._client.crm.deals.basic_api.update,
         }
 
+    def pipeline_details(self, pipeline_id=None, return_all_pipelines=False):
+        """
+        Returns a list of details of pipelines. Where a pipeline_id is provided,
+        that pipeline will be returned. Otherwise, it will default to using
+        self.pipeline_id.
+        Where return_all_pipelines=True, it will ignore the pipeline filter and
+        instead return all pipelines.
+        """
+        pipeline_id = pipeline_id or self.pipeline_id
+
+        pipelines = []
+        for object_type in ["TICKET", "DEAL"]:
+            response = self._client.crm.pipelines.pipelines_api.get_all(
+                object_type=object_type
+            ).results
+            for pipeline in response:
+                pipeline.object_type = object_type
+            pipelines += response
+
+        if not return_all_pipelines:
+            pipelines = [x for x in pipelines if x.id == pipeline_id]
+        return pipelines
+
     def _find(self, object_name, property_name, value, sort):
         query = Filter(property_name=property_name, operator="EQ", value=value)
         filter_groups = [FilterGroup(filters=[query])]
@@ -140,8 +166,6 @@ class HubSpotClient:
         query = Filter(property_name=property_name, operator="EQ", value=value)
         filter_groups = [FilterGroup(filters=[pipeline_filter, query])]
 
-        # sort = [{"propertyName": "hs_object_id", "direction": "ASCENDING"}]
-
         public_object_search_request = PublicObjectSearchRequest(
             limit=20,
             filter_groups=filter_groups,
@@ -177,6 +201,139 @@ class HubSpotClient:
             return self._find_owner_by_id(owner_id=value)
         if property_name == "email":
             return self._find_owner_by_email(email=value)
+
+    def find_all_tickets(
+        self, filter_name=None, filter_value=None, properties=None, pipeline_id=None
+    ):
+        """
+        Finds and returns all tickets, using the filter name and value as the
+        high watermark for the tickets to return. If None are provided, it
+        returns everything, defaulting to using the 'hs_lastmodifieddate' and
+        0 epoch.
+        This iterates over batches, using the previous batch as the new high
+        watermark for the next batch to be returned until there are no more
+        records or batches to return.
+        Also returns the default properties if none are given, otherwise it will
+        return the given properties, where they exist as properties.
+        If a pipeline_id is given, this will be used to filter tickets specific to
+        that pipeline, otherwise it returns tickets from all pipelines.
+        """
+        if filter_name is None and filter_value is None:
+            filter_name = "hs_lastmodifieddate"
+
+        after = 0
+        while after is not None:
+            # If the filter is on the modified date, we want to convert the given
+            # date to an epoch
+            formatted_filter_value = filter_value
+            if filter_name == "hs_lastmodifieddate":
+                formatted_filter_value = convert_date_to_epoch(filter_value)
+
+            query = Filter(
+                property_name=filter_name, operator="GT", value=formatted_filter_value
+            )
+
+            filters = [query]
+
+            if pipeline_id:
+                pipeline_query = Filter(
+                    property_name="hs_pipeline", operator="EQ", value=pipeline_id
+                )
+                filters.append(pipeline_query)
+
+            filter_groups = [FilterGroup(filters=filters)]
+
+            public_object_search_request = PublicObjectSearchRequest(
+                limit=BATCH_LIMITS,
+                filter_groups=filter_groups,
+                sorts=[{"propertyName": filter_name, "direction": "ASCENDING"}],
+                properties=properties,
+                after=after,
+            )
+            response = self._client.crm.tickets.search_api.do_search(
+                public_object_search_request=public_object_search_request
+            )
+            yield response.results
+
+            # Update after to page onto next batch if there is next otherwise break as
+            # there are no more batches to iterate over.
+            if response.paging:
+                after = response.paging.next.after
+            else:
+                after = None
+
+    def find_all_deals(
+        self, filter_name=None, filter_value=None, properties=None, pipeline_id=None
+    ):
+        """
+        Finds and returns all deals, using the filter name and value as the
+        high watermark for the deals to return. If None are provided, it
+        returns everything, defaulting to using the 'hs_lastmodifieddate' and
+        0 epoch.
+        This iterates over batches, using the previous batch as the new high
+        watermark for the next batch to be returned until there are no more
+        records or batches to return.
+        Also returns the default properties if none are given, otherwise it will
+        return the given properties, where they exist as properties.
+        If a pipeline_id is given, this will be used to filter deals specific to
+        that pipeline, otherwise it returns deals from all pipelines.
+        """
+        if filter_name is None and filter_value is None:
+            filter_name = "hs_lastmodifieddate"
+
+        after = 0
+        while after is not None:
+            # If the filter is on the modified date, we want to convert the given
+            # date to an epoch
+            formatted_filter_value = filter_value
+            if filter_name == "hs_lastmodifieddate":
+                formatted_filter_value = convert_date_to_epoch(filter_value)
+
+            query = Filter(
+                property_name=filter_name, operator="GT", value=formatted_filter_value
+            )
+
+            filters = [query]
+
+            if pipeline_id:
+                pipeline_query = Filter(
+                    property_name="pipeline", operator="EQ", value=pipeline_id
+                )
+                filters.append(pipeline_query)
+
+            filter_groups = [FilterGroup(filters=filters)]
+
+            # The first search/response is to get the deal ids that will be passed to
+            # the second api call
+            public_object_search_request = PublicObjectSearchRequest(
+                limit=BATCH_LIMITS,
+                filter_groups=filter_groups,
+                sorts=[{"propertyName": filter_name, "direction": "ASCENDING"}],
+                after=after,
+            )
+            initial_response = self._client.crm.deals.search_api.do_search(
+                public_object_search_request=public_object_search_request
+            )
+
+            # Pull out ids to pass onto batch request to get detailed response
+            batches = [{"id": x.id} for x in initial_response.results]
+
+            batch_public_object = BatchReadInputSimplePublicObjectId(
+                inputs=batches,
+                properties=properties,
+                # properties_with_history=["dealstage", 'dealname']
+            )
+
+            response = self._client.crm.deals.batch_api.read(batch_public_object)
+            # import pdb; pdb.set_trace()
+            yield response.results
+
+            # Update after to page onto next batch if there is next otherwise break as
+            # there are no more batches to iterate over.
+            if initial_response.paging:
+                after = initial_response.paging.next.after
+            else:
+                after = None
 
     def create_contact(self, email, first_name, last_name, **properties):
         properties = dict(
@@ -324,3 +481,14 @@ class HubSpotClient:
                 to_object_id=output["company"].id,
             )
         return output
+
+
+def convert_date_to_epoch(date):
+    if date:
+        start_millisecond_value = (int(date.timestamp()) * 1000) + int(
+            date.microsecond / 1000
+        )
+    else:
+        start_millisecond_value = 0
+
+    return start_millisecond_value

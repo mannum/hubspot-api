@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name="hubspot-api",
-    version="0.3",
+    version="0.4",
     description="Superscript Hubspot API",
     author="Superscript",
     author_email="paul.lucas@gosuperscript.com",
