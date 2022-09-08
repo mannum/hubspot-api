@@ -263,7 +263,12 @@ class HubSpotClient:
                 after = None
 
     def find_all_deals(
-        self, filter_name=None, filter_value=None, properties=None, pipeline_id=None
+        self,
+        filter_name=None,
+        filter_value=None,
+        properties=None,
+        pipeline_id=None,
+        properties_with_history=None,
     ):
         """
         Finds and returns all deals, using the filter name and value as the
@@ -321,7 +326,7 @@ class HubSpotClient:
             batch_public_object = BatchReadInputSimplePublicObjectId(
                 inputs=batches,
                 properties=properties,
-                # properties_with_history=["dealstage", 'dealname']
+                properties_with_history=properties_with_history,
             )
 
             response = self._client.crm.deals.batch_api.read(batch_public_object)
