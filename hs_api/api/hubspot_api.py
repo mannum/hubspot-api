@@ -3,7 +3,6 @@ import time
 from hubspot import HubSpot
 from hubspot.auth.oauth import ApiException
 from hubspot.crm.contacts import (
-    BatchReadInputSimplePublicObjectId,
     Filter,
     FilterGroup,
     PublicGdprDeleteInput,
@@ -284,59 +283,37 @@ class HubSpotClient:
         that pipeline, otherwise it returns deals from all pipelines.
         """
         if filter_name is None and filter_value is None:
-            filter_name = "hs_lastmodifieddate"
+            filter_name = "id"
+            filter_value = "0"
 
         after = 0
         while after is not None:
-            # If the filter is on the modified date, we want to convert the given
-            # date to an epoch
-            formatted_filter_value = filter_value
-            if filter_name == "hs_lastmodifieddate":
-                formatted_filter_value = convert_date_to_epoch(filter_value)
 
-            query = Filter(
-                property_name=filter_name, operator="GT", value=formatted_filter_value
-            )
-
-            filters = [query]
-
-            if pipeline_id:
-                pipeline_query = Filter(
-                    property_name="pipeline", operator="EQ", value=pipeline_id
-                )
-                filters.append(pipeline_query)
-
-            filter_groups = [FilterGroup(filters=filters)]
-
-            # The first search/response is to get the deal ids that will be passed to
-            # the second api call
-            public_object_search_request = PublicObjectSearchRequest(
+            response = self._client.crm.deals.basic_api.get_page(
                 limit=BATCH_LIMITS,
-                filter_groups=filter_groups,
-                sorts=[{"propertyName": filter_name, "direction": "ASCENDING"}],
-                after=after,
-            )
-            initial_response = self._client.crm.deals.search_api.do_search(
-                public_object_search_request=public_object_search_request
-            )
-
-            # Pull out ids to pass onto batch request to get detailed response
-            batches = [{"id": x.id} for x in initial_response.results]
-
-            batch_public_object = BatchReadInputSimplePublicObjectId(
-                inputs=batches,
                 properties=properties,
                 properties_with_history=properties_with_history,
+                associations=["contacts", "companies"],
+                after=after,
             )
 
-            response = self._client.crm.deals.batch_api.read(batch_public_object)
-            # import pdb; pdb.set_trace()
-            yield response.results
+            results = response.results
+
+            # Filter records on filter name/value and pipeline id if provided
+            results = [
+                x
+                for x in results
+                if getattr(x, filter_name) > filter_value
+                and (x.properties.get("pipeline") == pipeline_id or pipeline_id is None)
+            ]
+
+            if results:
+                yield results
 
             # Update after to page onto next batch if there is next otherwise break as
             # there are no more batches to iterate over.
-            if initial_response.paging:
-                after = initial_response.paging.next.after
+            if response.paging:
+                after = response.paging.next.after
             else:
                 after = None
 
