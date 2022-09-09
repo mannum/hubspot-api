@@ -424,20 +424,6 @@ def test_pipeline_details_for_all_pipelines(hubspot_client):
     assert len(pipelines) > 1
 
 
-def test_find_all_deals_returns_batches(hubspot_client):
-    deals = hubspot_client.find_all_deals()
-
-    # Assert that the first batch contains the limit of records
-    # for a batch
-    initial_batch = next(deals)
-    assert len(initial_batch) == BATCH_LIMITS
-
-    following_batch = next(deals)
-
-    # Assert that the next batch follows on from the previous
-    assert following_batch[0].updated_at > initial_batch[-1].updated_at
-
-
 def test_find_all_deals_returns_default_properties(hubspot_client):
     deals = hubspot_client.find_all_deals()
     actual = next(deals)[0].properties
@@ -476,7 +462,7 @@ def test_find_all_deals_returns_after_given_hs_lastmodifieddate(hubspot_client):
     all_deals = hubspot_client.find_all_deals()
     filter_value = next(all_deals)[0].updated_at
     filtered_deals = hubspot_client.find_all_deals(
-        filter_name="hs_lastmodifieddate",
+        filter_name="updated_at",
         filter_value=filter_value,
     )
 
@@ -489,7 +475,7 @@ def test_find_all_deals_returns_after_given_hs_object_id(hubspot_client):
     all_deals = hubspot_client.find_all_deals()
     filter_value = next(all_deals)[0].id
     filtered_deals = hubspot_client.find_all_deals(
-        filter_name="hs_object_id",
+        filter_name="id",
         filter_value=filter_value,
     )
 
@@ -503,3 +489,11 @@ def test_find_all_deals_returns_for_given_pipeline_id(hubspot_client):
     actual_pipeline = next(all_deals)[0].properties["pipeline"]
 
     assert actual_pipeline == HUBSPOT_TEST_PIPELINE_ID
+
+
+def test_find_all_deals_returns_properties_with_history(hubspot_client):
+    expected_history = ["dealstage"]
+    all_deals = hubspot_client.find_all_deals(properties_with_history=expected_history)
+    actual_history = next(all_deals)[0].properties_with_history
+
+    assert expected_history == [*actual_history]
