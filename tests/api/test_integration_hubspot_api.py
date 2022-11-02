@@ -3,7 +3,7 @@ import time
 
 import pytest
 
-from hs_api.api.hubspot_api import BATCH_LIMITS, HubSpotClient
+from hs_api.api.hubspot_api import EMAIL_BATCH_LIMIT, BATCH_LIMITS, HubSpotClient
 from hs_api.settings.settings import (
     HUBSPOT_TEST_ACCESS_TOKEN,
     HUBSPOT_TEST_PIPELINE_ID,
@@ -505,7 +505,7 @@ def test_find_all_email_events_returns_batches(hubspot_client):
     # Assert that the first batch contains the limit of records
     # for a batch
     initial_batch = next(email_events)
-    assert len(initial_batch) == BATCH_LIMITS
+    assert len(initial_batch) == EMAIL_BATCH_LIMIT
 
     following_batch = next(email_events)
 

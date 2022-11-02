@@ -23,6 +23,7 @@ ASSOCIATION_TYPE_LOOKUP = {
 }
 
 BATCH_LIMITS = 50
+EMAIL_BATCH_LIMIT = 1000
 
 
 def get_association_id(from_object_type, to_object_type):
@@ -222,7 +223,7 @@ class HubSpotClient:
         while True:
 
             params = {
-                "limit": BATCH_LIMITS,
+                "limit": EMAIL_BATCH_LIMIT,
                 "offset": offset,
             }
             if filter_name:
