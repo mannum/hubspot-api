@@ -1,5 +1,6 @@
 import time
 
+import requests
 from hubspot import HubSpot
 from hubspot.auth.oauth import ApiException
 from hubspot.crm.contacts import (
@@ -200,6 +201,49 @@ class HubSpotClient:
             return self._find_owner_by_id(owner_id=value)
         if property_name == "email":
             return self._find_owner_by_email(email=value)
+
+    def find_all_email_events(self, filter_name=None, filter_value=None):
+        """
+        Finds and returns all email events, using the filter name and value as the
+        high watermark for the events to return. If None are provided, it
+        returns everything, defaulting to using the 'created' date and
+        0 epoch.
+        This iterates over batches, using the previous batch as the new high
+        watermark for the next batch to be returned until there are no more
+        records or batches to return.
+
+        NOTE: This currently uses the requests library to use the v1 api for the
+        events as there is currently as per the Hubspot website
+        https://developers.hubspot.com/docs/api/events/email-analytics.
+        Once this is released we can transition over to using that.
+        """
+
+        offset = None
+        while True:
+
+            params = {
+                "limit": BATCH_LIMITS,
+                "offset": offset,
+            }
+            if filter_name:
+                params[filter_name] = filter_value
+
+            response = requests.get(
+                "https://api.hubapi.com/email/public/v1/events",
+                headers={"Authorization": f"Bearer {self._access_token}"},
+                params=params,
+            )
+            response.raise_for_status()
+
+            response_json = response.json()
+
+            yield response_json.get("events", [])
+
+            # Update after to page onto next batch if there is next otherwise break as
+            # there are no more batches to iterate over.
+            offset = response_json.get("offset", False)
+            if offset is None:
+                break
 
     def find_all_tickets(
         self, filter_name=None, filter_value=None, properties=None, pipeline_id=None

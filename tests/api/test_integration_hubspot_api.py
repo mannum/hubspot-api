@@ -497,3 +497,29 @@ def test_find_all_deals_returns_properties_with_history(hubspot_client):
     actual_history = next(all_deals)[0].properties_with_history
 
     assert expected_history == [*actual_history]
+
+
+def test_find_all_email_events_returns_batches(hubspot_client):
+    email_events = hubspot_client.find_all_email_events()
+
+    # Assert that the first batch contains the limit of records
+    # for a batch
+    initial_batch = next(email_events)
+    assert len(initial_batch) == BATCH_LIMITS
+
+    following_batch = next(email_events)
+
+    # Assert that the next batch follows on from the previous and is not the same batch
+    assert following_batch != initial_batch
+
+
+def test_find_all_email_events_returns_after_given_starttimestamp_epoch(hubspot_client):
+    all_events = hubspot_client.find_all_email_events()
+    filter_value = next(all_events)[-1]["created"]
+    filtered_events = hubspot_client.find_all_email_events(
+        filter_name="startTimestamp",
+        filter_value=filter_value + 1,
+    )
+    # Assert that the first record of the returned filtered list starts
+    # after the original returned list
+    assert next(filtered_events)[0]["created"] > filter_value
