@@ -4,7 +4,7 @@ from setuptools import find_packages
 
 setup(
     name="hubspot-api",
-    version="0.8",
+    version="1.0.0",
     description="Superscript Hubspot API",
     author="Superscript",
     author_email="paul.lucas@gosuperscript.com",
