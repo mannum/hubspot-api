@@ -513,7 +513,7 @@ def test_find_all_email_events_returns_batches(hubspot_client):
     assert following_batch != initial_batch
 
 
-def test_find_all_email_events_returns_after_given_startTimestamp_epoch(hubspot_client):
+def test_find_all_email_events_returns_after_given_starttimestamp_epoch(hubspot_client):
     all_events = hubspot_client.find_all_email_events()
     filter_value = next(all_events)[-1]["created"]
     filtered_events = hubspot_client.find_all_email_events(
