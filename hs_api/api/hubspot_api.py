@@ -202,7 +202,7 @@ class HubSpotClient:
             return self._find_owner_by_email(email=value)
 
 
-    def find_all_email_events(self):
+    def find_all_email_events(self, filter_name=None, filter_value=None):
         """
        Finds and returns all email events, using the filter name and value as the
        high watermark for the events to return. If None are provided, it
@@ -223,8 +223,10 @@ class HubSpotClient:
 
             params = {
                 "limit": BATCH_LIMITS,
-                'offset': offset
+                'offset': offset,
             }
+            if filter_name:
+                params[filter_name] = filter_value
 
             response = requests.get(
                 "https://api.hubapi.com/email/public/v1/events",
