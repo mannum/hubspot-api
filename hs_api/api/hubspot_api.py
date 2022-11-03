@@ -25,6 +25,8 @@ ASSOCIATION_TYPE_LOOKUP = {
 
 BATCH_LIMITS = 50
 EMAIL_BATCH_LIMIT = 1000
+RETRY_LIMIT = 3
+RETRY_WAIT = 60
 
 
 def get_association_id(from_object_type, to_object_type):
