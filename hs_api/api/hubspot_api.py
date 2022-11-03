@@ -246,7 +246,7 @@ class HubSpotClient:
                 # Update after to page onto next batch if there is next otherwise break as
                 # there are no more batches to iterate over.
                 offset = response_json.get("offset", False)
-                if offset is None:
+                if not response_json.get("hasMore", False):
                     break
                 retry = 0
             except HTTPError as e:
