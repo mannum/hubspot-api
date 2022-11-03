@@ -18,7 +18,7 @@ TEST_ROOT = PROJECT_ROOT.parent / "test"
 TEST_FILES_ROOT = TEST_ROOT / "test_files"
 
 # Hubspot API/ Default pipeline
-HUBSPOT_ACCESS_TOKEN = os.environ.get("HUBSPOT_ACCESS_TOKEN")
+HUBSPOT_ACCESS_TOKEN = os.environ.get("HUBSPOT_ACCESS_TOKEN_PROD")
 HUBSPOT_PIPELINE_ID = os.environ.get("HUBS_PIPELINE_ID")
 
 # Hubspot Test API/Pipeline

@@ -1,6 +1,7 @@
 import time
 
 import requests
+from requests.exceptions import HTTPError
 from hubspot import HubSpot
 from hubspot.auth.oauth import ApiException
 from hubspot.crm.contacts import (
@@ -24,6 +25,8 @@ ASSOCIATION_TYPE_LOOKUP = {
 
 BATCH_LIMITS = 50
 EMAIL_BATCH_LIMIT = 1000
+RETRY_LIMIT = 3
+RETRY_WAIT = 60
 
 
 def get_association_id(from_object_type, to_object_type):
@@ -218,33 +221,43 @@ class HubSpotClient:
         https://developers.hubspot.com/docs/api/events/email-analytics.
         Once this is released we can transition over to using that.
         """
-
+        retry = 0
         offset = None
         while True:
+            try:
+                params = {
+                    "limit": EMAIL_BATCH_LIMIT,
+                    "offset": offset,
+                }
+                if filter_name:
+                    params[filter_name] = filter_value
 
-            params = {
-                "limit": EMAIL_BATCH_LIMIT,
-                "offset": offset,
-            }
-            if filter_name:
-                params[filter_name] = filter_value
+                response = requests.get(
+                    "https://api.hubapi.com/email/public/v1/events",
+                    headers={"Authorization": f"Bearer {self._access_token}"},
+                    params=params,
+                )
+                response.raise_for_status()
 
-            response = requests.get(
-                "https://api.hubapi.com/email/public/v1/events",
-                headers={"Authorization": f"Bearer {self._access_token}"},
-                params=params,
-            )
-            response.raise_for_status()
+                response_json = response.json()
 
-            response_json = response.json()
+                yield response_json.get("events", [])
 
-            yield response_json.get("events", [])
-
-            # Update after to page onto next batch if there is next otherwise break as
-            # there are no more batches to iterate over.
-            offset = response_json.get("offset", False)
-            if offset is None:
-                break
+                # Update after to page onto next batch if there is next otherwise break as
+                # there are no more batches to iterate over.
+                offset = response_json.get("offset", False)
+                if offset is None:
+                    break
+                retry = 0
+            except HTTPError as e:
+                status_code = e.response.status_code
+                if retry >= RETRY_LIMIT:
+                    raise e
+                if status_code in (504,):
+                    retry += 1
+                    time.sleep(RETRY_WAIT)
+                else:
+                    raise e
 
     def find_all_tickets(
         self, filter_name=None, filter_value=None, properties=None, pipeline_id=None
