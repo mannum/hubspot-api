@@ -1,8 +1,6 @@
-import datetime
 import time
 
 import requests
-from requests.exceptions import HTTPError
 from hubspot import HubSpot
 from hubspot.auth.oauth import ApiException
 from hubspot.crm.contacts import (
@@ -12,6 +10,7 @@ from hubspot.crm.contacts import (
     PublicObjectSearchRequest,
     SimplePublicObjectInput,
 )
+from requests.exceptions import HTTPError
 
 from hs_api.settings.settings import HUBSPOT_ACCESS_TOKEN, HUBSPOT_PIPELINE_ID
 
