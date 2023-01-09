@@ -1,7 +1,6 @@
 import time
 
 import requests
-from requests.exceptions import HTTPError
 from hubspot import HubSpot
 from hubspot.auth.oauth import ApiException
 from hubspot.crm.contacts import (
@@ -11,6 +10,7 @@ from hubspot.crm.contacts import (
     PublicObjectSearchRequest,
     SimplePublicObjectInput,
 )
+from requests.exceptions import HTTPError
 
 from hs_api.settings.settings import HUBSPOT_ACCESS_TOKEN, HUBSPOT_PIPELINE_ID
 
@@ -326,6 +326,7 @@ class HubSpotClient:
         properties=None,
         pipeline_id=None,
         properties_with_history=None,
+        archived_only=False,
     ):
         """
         Finds and returns all deals, using the filter name and value as the
@@ -346,6 +347,8 @@ class HubSpotClient:
 
         after = 0
         while after is not None:
+            if after == 0:
+                after = None
 
             response = self._client.crm.deals.basic_api.get_page(
                 limit=BATCH_LIMITS,
@@ -353,6 +356,7 @@ class HubSpotClient:
                 properties_with_history=properties_with_history,
                 associations=["contacts", "companies"],
                 after=after,
+                archived=archived_only,
             )
 
             results = response.results
