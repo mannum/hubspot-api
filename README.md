@@ -69,3 +69,35 @@ make py-format-lint
 ```
 make all
 ```
+
+## Releasing
+
+In order to release your changes, you will create a PR for your branch as
+normal, which will kick off the github actions to run the linting and tests.
+
+Be aware that a couple of the tests can be flakey due to the delay in the
+asynchronous way hubspot returns results and actually applies them to the
+underlying data. There are dealys in place to account for this but there can
+be cases where a test fails because a record appears to have not been created.
+This probably needs reworking, but feel free to re-run the tests.
+
+When releasing a change, you will have to update the `setup.py` file with the
+new version number so that the relevant library imports can get the right version.
+
+Once the PR is approved and tests pass, you can merge back into master.
+
+From here - in Github - you can create a new release, which you can find on the
+right hand side of the repo page under the _About_ section.
+
+Click on _Draft a new release_ and create a new tag for the version number you used
+in the `setup.py` of the merged branch and give it a title and description
+of the change. This doesn't have to be too formal as this is only internal
+use at the moment.
+Now you can click _Publish release_ and this will make it available as a
+library.
+
+Be sure to update the relevant dependant projects to pull this new version, i.e.
+
+```
+pip install git+https://github.com/mannum/hubspot-api.git@9.9.0
+```
