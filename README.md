@@ -37,7 +37,7 @@ pipeline_id = 'my_pipeline_id'
 
 client = HubSpotClient(
     access_token=access_token,
-    PIPELINE_ID=pipeline_id,
+    pipeline_id=pipeline_id,
 )
 ```
 
