@@ -1,7 +1,6 @@
 from datetime import datetime
 import time
 
-import requests
 from hubspot import HubSpot
 from hubspot.auth.oauth import ApiException
 from hubspot.crm.contacts import (
@@ -27,7 +26,7 @@ ASSOCIATION_TYPE_LOOKUP = {
 }
 
 BATCH_LIMITS = 50
-EMAIL_BATCH_LIMIT = 1000
+EMAIL_BATCH_LIMIT = 10
 RETRY_LIMIT = 3
 RETRY_WAIT = 60
 
@@ -118,14 +117,17 @@ class HubSpotClient:
             pipelines = [x for x in pipelines if x.id == pipeline_id]
         return pipelines
 
-    def _find(self, object_name, property_name, value, sort):
-        query = Filter(property_name=property_name, operator="EQ", value=value)
-        filter_groups = [FilterGroup(filters=[query])]
+    def _find(self, object_name, property_name, value, sort, limit=20, after=0):
+        filter_groups = None
+        if property_name and value:
+            query = Filter(property_name=property_name, operator="EQ", value=value)
+            filter_groups = [FilterGroup(filters=[query])]
 
         public_object_search_request = PublicObjectSearchRequest(
-            limit=20,
+            limit=limit,
             filter_groups=filter_groups,
             sorts=sort,
+            after=after,
         )
 
         response = self.search_lookup[object_name](
@@ -268,7 +270,7 @@ class HubSpotClient:
         if property_name == "email":
             return self._find_owner_by_email(email=value)
 
-    def find_all_email_events(self, filter_name=None, filter_value=None):
+    def find_all_email_events(self, filter_name=None, filter_value=None, limit=EMAIL_BATCH_LIMIT, **parameters):
         """
         Finds and returns all email events, using the filter name and value as the
         high watermark for the events to return. If None are provided, it
@@ -277,40 +279,31 @@ class HubSpotClient:
         This iterates over batches, using the previous batch as the new high
         watermark for the next batch to be returned until there are no more
         records or batches to return.
-
-        NOTE: This currently uses the requests library to use the v1 api for the
-        events as there is currently as per the Hubspot website
-        https://developers.hubspot.com/docs/api/events/email-analytics.
-        Once this is released we can transition over to using that.
         """
+        sort = [{"propertyName": "hs_lastmodifieddate", "direction": "DESCENDING"}]
         retry = 0
-        offset = None
+        after = None
         while True:
             try:
-                params = {
-                    "limit": EMAIL_BATCH_LIMIT,
-                    "offset": offset,
-                }
                 if filter_name:
-                    params[filter_name] = filter_value
+                    parameters[filter_name] = filter_value
 
-                response = requests.get(
-                    "https://api.hubapi.com/email/public/v1/events",
-                    headers={"Authorization": f"Bearer {self._access_token}"},
-                    params=params,
-                )
-                response.raise_for_status()
-
-                response_json = response.json()
-
-                yield response_json.get("events", [])
-
-                # Update after to page onto next batch if there is next otherwise break as
-                # there are no more batches to iterate over.
-                offset = response_json.get("offset", False)
-                if not response_json.get("hasMore", False):
+                resp = self._find("email",
+                                  property_name=filter_name,
+                                  value=filter_value,
+                                  limit=limit,
+                                  after=after,
+                                  sort=sort,
+                                  )
+                if not resp.results:
                     break
-                retry = 0
+
+                yield resp.results
+
+                if not resp.paging:
+                    break
+                after = resp.paging.next.after
+
             except HTTPError as e:
                 status_code = e.response.status_code
                 if retry >= RETRY_LIMIT:
@@ -439,10 +432,9 @@ class HubSpotClient:
 
             # Update after to page onto next batch if there is next otherwise break as
             # there are no more batches to iterate over.
-            if response.paging:
-                after = response.paging.next.after
-            else:
-                after = None
+            if not response.paging:
+                break
+            after = response.paging.next.after
 
     def create_contact(self, email, first_name, last_name, **properties):
         properties = dict(
@@ -598,7 +590,7 @@ class HubSpotClient:
             from_object_id,
             to_object_type,
             to_object_id,
-            get_association_id(from_object_type, to_object_type),
+            [],
         )
         return result
 
