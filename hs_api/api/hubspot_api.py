@@ -1,3 +1,4 @@
+from datetime import datetime
 import time
 
 import requests
@@ -11,6 +12,8 @@ from hubspot.crm.contacts import (
     SimplePublicObjectInput,
 )
 from requests.exceptions import HTTPError
+from typing import Dict, Optional
+from collections.abc import Generator
 
 from hs_api.settings.settings import HUBSPOT_ACCESS_TOKEN, HUBSPOT_PIPELINE_ID
 
@@ -64,6 +67,8 @@ class HubSpotClient:
             "contact": self._client.crm.contacts.basic_api.create,
             "company": self._client.crm.companies.basic_api.create,
             "deal": self._client.crm.deals.basic_api.create,
+            "ticket": self._client.crm.tickets.basic_api.create,
+            "email": self._client.crm.objects.emails.basic_api.create,
         }
 
     @property
@@ -71,6 +76,7 @@ class HubSpotClient:
         return {
             "contact": self._client.crm.contacts.search_api.do_search,
             "company": self._client.crm.companies.search_api.do_search,
+            "email": self._client.crm.objects.emails.search_api.do_search,
         }
 
     @property
@@ -156,12 +162,58 @@ class HubSpotClient:
         response = self._find("contact", property_name, value, sort)
         return response.results
 
+    def find_contact_iter(self, property_name: str, value: str, limit: int = 20) -> Generator[Dict, None, None]:
+        """
+        Searches for a contact in Hubspot and returns results as a generator
+
+        :param property_name: The field name from Hubspot
+        :param value: The value to search in the field property_name
+        :param limit: The number of results to return per iteration
+        :return: Dictionary of results
+        """
+        sort = [{"propertyName": "hs_object_id", "direction": "ASCENDING"}]
+        after = 0
+
+        while True:
+            response = self._find("contact", property_name, value, sort, limit=limit, after=after)
+            if not response.results:
+                break
+
+            yield response.results
+
+            if not response.paging:
+                break
+            after = response.paging.next.after
+
     def find_company(self, property_name, value):
 
         sort = [{"propertyName": "hs_lastmodifieddate", "direction": "DESCENDING"}]
 
         response = self._find("company", property_name, value, sort)
         return response.results
+
+    def find_company_iter(self, property_name: str, value: str, limit: int = 20) -> Generator[Dict, None, None]:
+        """
+        Searches for a company in Hubspot and returns results as a generator
+
+        :param property_name: The field name from Hubspot
+        :param value: The value to search in the field property_name
+        :param limit: The number of results to return per iteration
+        :return: Dictionary of results
+        """
+        sort = [{"propertyName": "hs_lastmodifieddate", "direction": "DESCENDING"}]
+        after = 0
+
+        while True:
+            response = self._find("company", property_name, value, sort, limit=limit, after=after)
+            if not response.results:
+                break
+
+            yield response.results
+
+            if not response.paging:
+                break
+            after = response.paging.next.after
 
     def find_deal(self, property_name, value):
         pipeline_filter = Filter(
@@ -194,6 +246,16 @@ class HubSpotClient:
     def _find_owner_by_id(self, owner_id):
         response = self._client.crm.owners.owners_api.get_by_id(owner_id=owner_id)
         return response
+
+    def find_all_owners(self):
+        after = None
+        while True:
+            response = self._client.crm.owners.owners_api.get_page(after=after)
+            yield response
+
+            if not response.paging:
+                break
+            after = response.paging.next.after
 
     def find_owner(self, property_name, value):
         if property_name not in ("id", "email"):
@@ -319,6 +381,9 @@ class HubSpotClient:
             else:
                 after = None
 
+    def find_ticket(self, ticket_id):
+        return self._client.crm.tickets.basic_api.get_by_id(ticket_id)
+
     def find_all_deals(
         self,
         filter_name=None,
@@ -428,6 +493,37 @@ class HubSpotClient:
             )
         return response
 
+    def create_ticket(self, subject, **properties):
+        properties = dict(subject=subject, **properties)
+        response = self._create("ticket", properties)
+        return response
+
+    def create_email(self, hs_timestamp: Optional[datetime] = None, hs_email_direction: Optional[str] = 'EMAIL',
+                     **properties):
+        """
+        See documentation at https://developers.hubspot.com/docs/api/crm/email
+
+        :param hs_timestamp: This field marks the email's time of creation and determines where the email sits on the
+        record timeline. You can use either a Unix timestamp in milliseconds or UTC format. If not provided, then the
+        current time is used.
+        :param hs_email_direction: The direction the email was sent in. Possible values include:
+
+        EMAIL: the email was sent from the CRM or sent and logged to the CRM with the BCC address.
+        INCOMING_EMAIL: the email was a reply to a logged outgoing email.
+
+        FORWARDED_EMAIL: the email was forwarded to the CRM.
+        :param properties: Dictionary of properties as documented on hubspot
+        :return:
+        """
+        if not hs_timestamp:
+            hs_timestamp = int(datetime.now().timestamp())
+        else:
+            hs_timestamp = int(hs_timestamp.timestamp())
+
+        properties = dict(hs_timestamp=hs_timestamp, hs_email_direction=hs_email_direction, **properties)
+        response = self._create("email", properties)
+        return response
+
     def delete_contact(self, value, property_name=None):
         try:
             public_gdpr_delete_input = PublicGdprDeleteInput(
@@ -454,6 +550,20 @@ class HubSpotClient:
             return api_response
         except ApiException as e:
             print(f"Exception when deleting deal: {e}\n")
+
+    def delete_ticket(self, ticket_id):
+        try:
+            api_response = self._client.crm.tickets.basic_api.archive(ticket_id)
+            return api_response
+        except ApiException as e:
+            print(f"Exception when deleting ticket: {e}\n")
+
+    def delete_email(self, email_id):
+        try:
+            api_response = self._client.crm.objects.emails.basic_api.archive(email_id)
+            return api_response
+        except ApiException as e:
+            print(f"Exception when deleting email: {e}\n")
 
     def update_company(self, object_id, **properties):
         response = self._update("company", object_id, properties)
