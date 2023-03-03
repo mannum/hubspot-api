@@ -1,18 +1,20 @@
-import pytest
-from hs_api.api.hubspot_api import HubSpotClient
 import datetime
 
+import pytest
+
+from hs_api.api.hubspot_api import BATCH_LIMITS, EMAIL_BATCH_LIMIT, HubSpotClient
 from hs_api.settings.settings import (
     HUBSPOT_TEST_ACCESS_TOKEN,
     HUBSPOT_TEST_PIPELINE_ID,
     HUBSPOT_TEST_TICKET_PIPELINE_ID,
 )
-from hs_api.api.hubspot_api import BATCH_LIMITS, EMAIL_BATCH_LIMIT
 
 
 @pytest.fixture(scope="session")
 def hubspot_client(deal_name, company_name, email, email_custom_domain, unique_id):
-    client = HubSpotClient(access_token=HUBSPOT_TEST_ACCESS_TOKEN, pipeline_id=HUBSPOT_TEST_PIPELINE_ID)
+    client = HubSpotClient(
+        access_token=HUBSPOT_TEST_ACCESS_TOKEN, pipeline_id=HUBSPOT_TEST_PIPELINE_ID
+    )
     test_deal = None
     test_tickets = None
     test_emails = []
@@ -20,8 +22,8 @@ def hubspot_client(deal_name, company_name, email, email_custom_domain, unique_i
     try:
         # create Hubspot elements
         test_deal = client.create_deal(deal_name)
-        test_tickets = create_tickets(client, unique_id, BATCH_LIMITS+1)
-        test_emails = create_emails(client, EMAIL_BATCH_LIMIT+1)
+        test_tickets = create_tickets(client, unique_id, BATCH_LIMITS + 1)
+        test_emails = create_emails(client, EMAIL_BATCH_LIMIT + 1)
 
         yield client
 
@@ -37,7 +39,9 @@ def hubspot_client(deal_name, company_name, email, email_custom_domain, unique_i
         for tid in test_emails:
             client.delete_email(tid)
 
-        clear_down_test_objects(client, company_name, deal_name, email, email_custom_domain)
+        clear_down_test_objects(
+            client, company_name, deal_name, email, email_custom_domain
+        )
 
 
 def create_emails(client, quantity):
@@ -51,11 +55,12 @@ def create_tickets(client, unique_id, quantity):
     ticket_ids = []
     for i in range(quantity):
         test_ticket_name = f"{unique_id}{i} ticket name"
-        properties = dict(subject=test_ticket_name,
-                          hs_pipeline=HUBSPOT_TEST_TICKET_PIPELINE_ID,
-                          hs_pipeline_stage=1,
-                          hs_ticket_priority="HIGH",
-                          )
+        properties = dict(
+            subject=test_ticket_name,
+            hs_pipeline=HUBSPOT_TEST_TICKET_PIPELINE_ID,
+            hs_pipeline_stage=1,
+            hs_ticket_priority="HIGH",
+        )
 
         ticket_result = client.create_ticket(**properties)
         assert ticket_result
@@ -63,7 +68,9 @@ def create_tickets(client, unique_id, quantity):
     return ticket_ids
 
 
-def clear_down_test_objects(client, company_name, deal_name, email, email_custom_domain):
+def clear_down_test_objects(
+    client, company_name, deal_name, email, email_custom_domain
+):
     companies = client.find_company("name", company_name)
     for company in companies:
         client.delete_company(company.id)

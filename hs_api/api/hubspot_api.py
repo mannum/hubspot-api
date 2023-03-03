@@ -1,5 +1,7 @@
-from datetime import datetime
 import time
+from collections.abc import Generator
+from datetime import datetime
+from typing import Dict, Optional
 
 from hubspot import HubSpot
 from hubspot.auth.oauth import ApiException
@@ -11,8 +13,6 @@ from hubspot.crm.contacts import (
     SimplePublicObjectInput,
 )
 from requests.exceptions import HTTPError
-from typing import Dict, Optional
-from collections.abc import Generator
 
 from hs_api.settings.settings import HUBSPOT_ACCESS_TOKEN, HUBSPOT_PIPELINE_ID
 
@@ -158,13 +158,14 @@ class HubSpotClient:
             print(f"Exception when updating {object_name}: {e}\n")
 
     def find_contact(self, property_name, value):
-
         sort = [{"propertyName": "hs_object_id", "direction": "ASCENDING"}]
 
         response = self._find("contact", property_name, value, sort)
         return response.results
 
-    def find_contact_iter(self, property_name: str, value: str, limit: int = 20) -> Generator[Dict, None, None]:
+    def find_contact_iter(
+        self, property_name: str, value: str, limit: int = 20
+    ) -> Generator[Dict, None, None]:
         """
         Searches for a contact in Hubspot and returns results as a generator
 
@@ -177,7 +178,9 @@ class HubSpotClient:
         after = 0
 
         while True:
-            response = self._find("contact", property_name, value, sort, limit=limit, after=after)
+            response = self._find(
+                "contact", property_name, value, sort, limit=limit, after=after
+            )
             if not response.results:
                 break
 
@@ -188,13 +191,14 @@ class HubSpotClient:
             after = response.paging.next.after
 
     def find_company(self, property_name, value):
-
         sort = [{"propertyName": "hs_lastmodifieddate", "direction": "DESCENDING"}]
 
         response = self._find("company", property_name, value, sort)
         return response.results
 
-    def find_company_iter(self, property_name: str, value: str, limit: int = 20) -> Generator[Dict, None, None]:
+    def find_company_iter(
+        self, property_name: str, value: str, limit: int = 20
+    ) -> Generator[Dict, None, None]:
         """
         Searches for a company in Hubspot and returns results as a generator
 
@@ -207,7 +211,9 @@ class HubSpotClient:
         after = 0
 
         while True:
-            response = self._find("company", property_name, value, sort, limit=limit, after=after)
+            response = self._find(
+                "company", property_name, value, sort, limit=limit, after=after
+            )
             if not response.results:
                 break
 
@@ -270,7 +276,9 @@ class HubSpotClient:
         if property_name == "email":
             return self._find_owner_by_email(email=value)
 
-    def find_all_email_events(self, filter_name=None, filter_value=None, limit=EMAIL_BATCH_LIMIT, **parameters):
+    def find_all_email_events(
+        self, filter_name=None, filter_value=None, limit=EMAIL_BATCH_LIMIT, **parameters
+    ):
         """
         Finds and returns all email events, using the filter name and value as the
         high watermark for the events to return. If None are provided, it
@@ -288,13 +296,14 @@ class HubSpotClient:
                 if filter_name:
                     parameters[filter_name] = filter_value
 
-                resp = self._find("email",
-                                  property_name=filter_name,
-                                  value=filter_value,
-                                  limit=limit,
-                                  after=after,
-                                  sort=sort,
-                                  )
+                resp = self._find(
+                    "email",
+                    property_name=filter_name,
+                    value=filter_value,
+                    limit=limit,
+                    after=after,
+                    sort=sort,
+                )
                 if not resp.results:
                     break
 
@@ -490,8 +499,12 @@ class HubSpotClient:
         response = self._create("ticket", properties)
         return response
 
-    def create_email(self, hs_timestamp: Optional[datetime] = None, hs_email_direction: Optional[str] = 'EMAIL',
-                     **properties):
+    def create_email(
+        self,
+        hs_timestamp: Optional[datetime] = None,
+        hs_email_direction: Optional[str] = "EMAIL",
+        **properties,
+    ):
         """
         See documentation at https://developers.hubspot.com/docs/api/crm/email
 
@@ -512,7 +525,11 @@ class HubSpotClient:
         else:
             hs_timestamp = int(hs_timestamp.timestamp())
 
-        properties = dict(hs_timestamp=hs_timestamp, hs_email_direction=hs_email_direction, **properties)
+        properties = dict(
+            hs_timestamp=hs_timestamp,
+            hs_email_direction=hs_email_direction,
+            **properties,
+        )
         response = self._create("email", properties)
         return response
 

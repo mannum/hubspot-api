@@ -1,7 +1,7 @@
 import pytest
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from hs_api.api.hubspot_api import EMAIL_BATCH_LIMIT, BATCH_LIMITS, HubSpotClient
+from hs_api.api.hubspot_api import BATCH_LIMITS, EMAIL_BATCH_LIMIT, HubSpotClient
 from hs_api.settings.settings import (
     HUBSPOT_TEST_ACCESS_TOKEN,
     HUBSPOT_TEST_PIPELINE_ID,
@@ -15,8 +15,9 @@ def test_pipeline_id_none_raises_value_error():
         client.pipeline_stages
 
 
-def test_create_and_find_contact(hubspot_client, first_name, last_name, email, phone, company_name):
-
+def test_create_and_find_contact(
+    hubspot_client, first_name, last_name, email, phone, company_name
+):
     # Assert the contact doesn't already exist
     contact = hubspot_client.find_contact("email", email)
     assert not contact
@@ -48,9 +49,7 @@ def test_create_and_find_company(hubspot_client, company_name, domain):
     assert not company
 
     # Create the company
-    company_result = hubspot_client.create_company(
-        name=company_name, domain=domain
-    )
+    company_result = hubspot_client.create_company(name=company_name, domain=domain)
 
     assert company_result
     assert company_result.id
@@ -72,16 +71,16 @@ def test_create_and_find_company_iter(hubspot_client, domain, unique_id):
         next(hubspot_client.find_company_iter("name", company_name))
 
     # Create the company
-    company_result = hubspot_client.create_company(
-        name=company_name, domain=domain
-    )
+    company_result = hubspot_client.create_company(name=company_name, domain=domain)
 
     assert company_result
     assert company_result.id
 
     @retry(stop=stop_after_attempt(7), wait=wait_fixed(2))
     def _test():
-        _company = next(hubspot_client.find_company_iter("hs_object_id", company_result.id))
+        _company = next(
+            hubspot_client.find_company_iter("hs_object_id", company_result.id)
+        )
         assert _company
 
     # Assert the company now exists based on previous creation
@@ -90,7 +89,9 @@ def test_create_and_find_company_iter(hubspot_client, domain, unique_id):
 
 def test_create_and_find_ticket(hubspot_client: HubSpotClient, unique_id):
     ticket_name = f"{unique_id}0 ticket name"
-    ticket = hubspot_client.find_all_tickets(filter_name="subject", filter_value=ticket_name)
+    ticket = hubspot_client.find_all_tickets(
+        filter_name="subject", filter_value=ticket_name
+    )
     assert ticket
 
 
@@ -100,14 +101,21 @@ def test_create_and_find_email(hubspot_client: HubSpotClient):
 
 
 def test_create_contact_and_associated_company_with_auto_created_company(
-    hubspot_client, first_name, last_name, email_custom_domain, phone, unique_id,
+    hubspot_client,
+    first_name,
+    last_name,
+    email_custom_domain,
+    phone,
+    unique_id,
 ):
     company_name = f"{unique_id} test_create_contact_and_associated_company_with_auto_created_company"
     # Assert the company and contact don't already exist
     company = hubspot_client.find_company("name", company_name)
     assert not company
 
-    email_custom_domain = f"{unique_id}@testcreatecontactandassociatedcompanywithautocreatedcompany.com"
+    email_custom_domain = (
+        f"{unique_id}@testcreatecontactandassociatedcompanywithautocreatedcompany.com"
+    )
     contact = hubspot_client.find_contact("email", email_custom_domain)
     assert not contact
 
@@ -172,7 +180,9 @@ def test_create_contact_and_associated_company_without_auto_created_company(
         _contact = hubspot_client.find_contact("email", email)
         assert _contact
 
-        _association = hubspot_client.contact_associations(result["contact"].id, "company")
+        _association = hubspot_client.contact_associations(
+            result["contact"].id, "company"
+        )
         assert _association
         assert _association[0].to_object_id == int(result["company"].id)
 
@@ -247,7 +257,9 @@ def test_create_deal_for_company(hubspot_client, unique_id):
     _test()
 
 
-def test_create_deal_for_contact(hubspot_client, first_name, last_name, phone, company_name, unique_id):
+def test_create_deal_for_contact(
+    hubspot_client, first_name, last_name, phone, company_name, unique_id
+):
     test_amount = 99.99
 
     # Assert the deal and company don't already exist
@@ -337,6 +349,7 @@ def test_find_all_tickets_returns_batches(hubspot_client: HubSpotClient):
 
         # Assert that the next batch follows on from the previous
         assert following_batch[0].updated_at > initial_batch[-1].updated_at
+
     _test()
 
 
@@ -375,7 +388,9 @@ def test_find_all_tickets_returns_given_properties(hubspot_client: HubSpotClient
     assert actual.keys() == expected.keys()
 
 
-def test_find_all_tickets_returns_after_given_hs_lastmodifieddate(hubspot_client: HubSpotClient):
+def test_find_all_tickets_returns_after_given_hs_lastmodifieddate(
+    hubspot_client: HubSpotClient,
+):
     all_tickets = hubspot_client.find_all_tickets()
     filter_value = next(all_tickets)[0].updated_at
     filtered_tickets = hubspot_client.find_all_tickets(
@@ -388,7 +403,9 @@ def test_find_all_tickets_returns_after_given_hs_lastmodifieddate(hubspot_client
     assert next(filtered_tickets)[0].updated_at > filter_value
 
 
-def test_find_all_tickets_returns_after_given_hs_object_id(hubspot_client: HubSpotClient):
+def test_find_all_tickets_returns_after_given_hs_object_id(
+    hubspot_client: HubSpotClient,
+):
     all_tickets = hubspot_client.find_all_tickets()
     filter_value = next(all_tickets)[0].id
     filtered_tickets = hubspot_client.find_all_tickets(
@@ -531,7 +548,7 @@ def test_find_all_email_events_returns_batches(hubspot_client):
 def test_find_all_email_events_returns_after_given_starttimestamp_epoch(hubspot_client):
     all_events = hubspot_client.find_all_email_events()
     filter_value = next(all_events)[-1].created_at
-    parameters = dict(created_after=filter_value.timestamp()+1)
+    parameters = dict(created_after=filter_value.timestamp() + 1)
     filtered_events = hubspot_client.find_all_email_events(**parameters)
     # Assert that the first record of the returned filtered list starts
     # after the original returned list
