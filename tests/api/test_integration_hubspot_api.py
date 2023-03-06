@@ -1,5 +1,5 @@
 import pytest
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from hs_api.api.hubspot_api import BATCH_LIMITS, EMAIL_BATCH_LIMIT, HubSpotClient
 from hs_api.settings.settings import (
@@ -34,7 +34,9 @@ def test_create_and_find_contact(
     assert contact_result
     assert contact_result.id
 
-    @retry(stop=stop_after_attempt(7), wait=wait_fixed(2))
+    @retry(
+        stop=stop_after_attempt(7), wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
     def _get_contact():
         _contact = hubspot_client.find_contact("hs_object_id", contact_result.id)
         assert _contact
@@ -54,7 +56,9 @@ def test_create_and_find_company(hubspot_client, company_name, domain):
     assert company_result
     assert company_result.id
 
-    @retry(stop=stop_after_attempt(7), wait=wait_fixed(2))
+    @retry(
+        stop=stop_after_attempt(7), wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
     def _test():
         _company = hubspot_client.find_company("hs_object_id", company_result.id)
         assert _company
@@ -76,7 +80,9 @@ def test_create_and_find_company_iter(hubspot_client, domain, unique_id):
     assert company_result
     assert company_result.id
 
-    @retry(stop=stop_after_attempt(7), wait=wait_fixed(2))
+    @retry(
+        stop=stop_after_attempt(7), wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
     def _test():
         _company = next(
             hubspot_client.find_company_iter("hs_object_id", company_result.id)
@@ -132,7 +138,9 @@ def test_create_contact_and_associated_company_with_auto_created_company(
     assert result["contact"].id
     assert result["company"].id
 
-    @retry(stop=stop_after_attempt(7), wait=wait_fixed(2))
+    @retry(
+        stop=stop_after_attempt(7), wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
     def _test():
         _company = hubspot_client.find_company("hs_object_id", result["company"].id)
         assert _company
@@ -171,7 +179,9 @@ def test_create_contact_and_associated_company_without_auto_created_company(
     assert result["contact"].id
     assert result["company"].id
 
-    @retry(stop=stop_after_attempt(7), wait=wait_fixed(2))
+    @retry(
+        stop=stop_after_attempt(7), wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
     def _test():
         _company = hubspot_client.find_company("hs_object_id", result["company"].id)
         assert _company
@@ -208,7 +218,9 @@ def test_create_and_find_deal(hubspot_client, unique_id):
     assert deal_result
     assert deal_result.id
 
-    @retry(stop=stop_after_attempt(7), wait=wait_fixed(2))
+    @retry(
+        stop=stop_after_attempt(7), wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
     def _test():
         _deal = hubspot_client.find_deal("dealname", deal_name)
         assert _deal
@@ -240,7 +252,9 @@ def test_create_deal_for_company(hubspot_client, unique_id):
     assert deal_result
     assert deal_result.id
 
-    @retry(stop=stop_after_attempt(7), wait=wait_fixed(2))
+    @retry(
+        stop=stop_after_attempt(7), wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
     def _test():
         _deal = hubspot_client.find_deal("dealname", deal_name)
         assert _deal
@@ -288,7 +302,9 @@ def test_create_deal_for_contact(
     assert deal_result
     assert deal_result.id
 
-    @retry(stop=stop_after_attempt(7), wait=wait_fixed(2))
+    @retry(
+        stop=stop_after_attempt(7), wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
     def _test():
         _deal = hubspot_client.find_deal("dealname", deal_name)
         assert _deal
@@ -336,7 +352,9 @@ def test_find_owner_without_id_or_email(hubspot_client):
 
 
 def test_find_all_tickets_returns_batches(hubspot_client: HubSpotClient):
-    @retry(stop=stop_after_attempt(7), wait=wait_fixed(2))
+    @retry(
+        stop=stop_after_attempt(7), wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
     def _test():
         tickets = hubspot_client.find_all_tickets()
 
