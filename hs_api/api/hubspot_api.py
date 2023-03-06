@@ -521,12 +521,12 @@ class HubSpotClient:
         :return:
         """
         if not hs_timestamp:
-            hs_timestamp = int(datetime.now().timestamp())
+            hs_timestamp_int = int(datetime.now().timestamp())
         else:
-            hs_timestamp = int(hs_timestamp.timestamp())
+            hs_timestamp_int = int(hs_timestamp.timestamp())
 
         properties = dict(
-            hs_timestamp=hs_timestamp,
+            hs_timestamp=hs_timestamp_int,
             hs_email_direction=hs_email_direction,
             **properties,
         )
