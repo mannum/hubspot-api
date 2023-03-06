@@ -67,8 +67,9 @@ jobs:
         with: {name: python-distribution-files, path: dist/}
       - name: Run tests
         env:
-          HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
-          HUBSPOT_PIPELINE_ID: ${{ secrets.HUBSPOT_PIPELINE_ID }}
+          HUBSPOT_TEST_ACCESS_TOKEN: ${{ secrets.HUBSPOT_TEST_ACCESS_TOKEN }}
+          HUBSPOT_TEST_PIPELINE_ID: ${{ secrets.HUBSPOT_TEST_PIPELINE_ID }}
+          HUBSPOT_TEST_TICKET_PIPELINE_ID: ${{ secrets.HUBSPOT_TEST_TICKET_PIPELINE_ID }}
         run: >-
           pipx run tox
           --installpkg '${{ needs.prepare.outputs.wheel-distribution }}'
