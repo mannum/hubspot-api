@@ -32,18 +32,20 @@ id of the pipeline that you want to interact with as the default.
 ```python
 from hs_api.api.hubspot_api import HubSpotClient
 
-access_token = 'my_access_token'
-pipeline_id = 'my_pipeline_id'
+access_token = "my_access_token"
+pipeline_id = "my_pipeline_id"
 
 client = HubSpotClient(
     access_token=access_token,
-    PIPELINE_ID=pipeline_id,
+    pipeline_id=pipeline_id,
 )
 ```
 
 You can also set the environment variables `HUBSPOT_ACCESS_TOKEN` and
 `HUBS_PIPELINE_ID` which will be used as defaults if no access_token or
-pipeline_id are passed to the `HubSpotClient`.
+pipeline_id are passed to the `HubSpotClient`. This can be done by copying
+the .env.template file from `hs_api\.env.template` into the root of the
+project and renaming it to .env.
 
 
 More details on how to use the client can be found in the test cases that
@@ -77,7 +79,7 @@ normal, which will kick off the github actions to run the linting and tests.
 
 Be aware that a couple of the tests can be flakey due to the delay in the
 asynchronous way hubspot returns results and actually applies them to the
-underlying data. There are dealys in place to account for this but there can
+underlying data. There are delays in place to account for this but there can
 be cases where a test fails because a record appears to have not been created.
 This probably needs reworking, but feel free to re-run the tests.
 

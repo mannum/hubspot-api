@@ -1,6 +1,8 @@
 import time
+from collections.abc import Generator
+from datetime import datetime
+from typing import Dict, Optional
 
-import requests
 from hubspot import HubSpot
 from hubspot.auth.oauth import ApiException
 from hubspot.crm.contacts import (
@@ -24,7 +26,7 @@ ASSOCIATION_TYPE_LOOKUP = {
 }
 
 BATCH_LIMITS = 50
-EMAIL_BATCH_LIMIT = 1000
+EMAIL_BATCH_LIMIT = 10
 RETRY_LIMIT = 3
 RETRY_WAIT = 60
 
@@ -64,6 +66,8 @@ class HubSpotClient:
             "contact": self._client.crm.contacts.basic_api.create,
             "company": self._client.crm.companies.basic_api.create,
             "deal": self._client.crm.deals.basic_api.create,
+            "ticket": self._client.crm.tickets.basic_api.create,
+            "email": self._client.crm.objects.emails.basic_api.create,
         }
 
     @property
@@ -71,6 +75,7 @@ class HubSpotClient:
         return {
             "contact": self._client.crm.contacts.search_api.do_search,
             "company": self._client.crm.companies.search_api.do_search,
+            "email": self._client.crm.objects.emails.search_api.do_search,
         }
 
     @property
@@ -112,14 +117,17 @@ class HubSpotClient:
             pipelines = [x for x in pipelines if x.id == pipeline_id]
         return pipelines
 
-    def _find(self, object_name, property_name, value, sort):
-        query = Filter(property_name=property_name, operator="EQ", value=value)
-        filter_groups = [FilterGroup(filters=[query])]
+    def _find(self, object_name, property_name, value, sort, limit=20, after=0):
+        filter_groups = None
+        if property_name and value:
+            query = Filter(property_name=property_name, operator="EQ", value=value)
+            filter_groups = [FilterGroup(filters=[query])]
 
         public_object_search_request = PublicObjectSearchRequest(
-            limit=20,
+            limit=limit,
             filter_groups=filter_groups,
             sorts=sort,
+            after=after,
         )
 
         response = self.search_lookup[object_name](
@@ -150,18 +158,70 @@ class HubSpotClient:
             print(f"Exception when updating {object_name}: {e}\n")
 
     def find_contact(self, property_name, value):
-
         sort = [{"propertyName": "hs_object_id", "direction": "ASCENDING"}]
 
         response = self._find("contact", property_name, value, sort)
         return response.results
 
-    def find_company(self, property_name, value):
+    def find_contact_iter(
+        self, property_name: str, value: str, limit: int = 20
+    ) -> Generator[Dict, None, None]:
+        """
+        Searches for a contact in Hubspot and returns results as a generator
 
+        :param property_name: The field name from Hubspot
+        :param value: The value to search in the field property_name
+        :param limit: The number of results to return per iteration
+        :return: Dictionary of results
+        """
+        sort = [{"propertyName": "hs_object_id", "direction": "ASCENDING"}]
+        after = 0
+
+        while True:
+            response = self._find(
+                "contact", property_name, value, sort, limit=limit, after=after
+            )
+            if not response.results:
+                break
+
+            yield response.results
+
+            if not response.paging:
+                break
+            after = response.paging.next.after
+
+    def find_company(self, property_name, value):
         sort = [{"propertyName": "hs_lastmodifieddate", "direction": "DESCENDING"}]
 
         response = self._find("company", property_name, value, sort)
         return response.results
+
+    def find_company_iter(
+        self, property_name: str, value: str, limit: int = 20
+    ) -> Generator[Dict, None, None]:
+        """
+        Searches for a company in Hubspot and returns results as a generator
+
+        :param property_name: The field name from Hubspot
+        :param value: The value to search in the field property_name
+        :param limit: The number of results to return per iteration
+        :return: Dictionary of results
+        """
+        sort = [{"propertyName": "hs_lastmodifieddate", "direction": "DESCENDING"}]
+        after = 0
+
+        while True:
+            response = self._find(
+                "company", property_name, value, sort, limit=limit, after=after
+            )
+            if not response.results:
+                break
+
+            yield response.results
+
+            if not response.paging:
+                break
+            after = response.paging.next.after
 
     def find_deal(self, property_name, value):
         pipeline_filter = Filter(
@@ -195,6 +255,16 @@ class HubSpotClient:
         response = self._client.crm.owners.owners_api.get_by_id(owner_id=owner_id)
         return response
 
+    def find_all_owners(self):
+        after = None
+        while True:
+            response = self._client.crm.owners.owners_api.get_page(after=after)
+            yield response
+
+            if not response.paging:
+                break
+            after = response.paging.next.after
+
     def find_owner(self, property_name, value):
         if property_name not in ("id", "email"):
             raise NameError(
@@ -206,7 +276,9 @@ class HubSpotClient:
         if property_name == "email":
             return self._find_owner_by_email(email=value)
 
-    def find_all_email_events(self, filter_name=None, filter_value=None):
+    def find_all_email_events(
+        self, filter_name=None, filter_value=None, limit=EMAIL_BATCH_LIMIT, **parameters
+    ):
         """
         Finds and returns all email events, using the filter name and value as the
         high watermark for the events to return. If None are provided, it
@@ -215,40 +287,32 @@ class HubSpotClient:
         This iterates over batches, using the previous batch as the new high
         watermark for the next batch to be returned until there are no more
         records or batches to return.
-
-        NOTE: This currently uses the requests library to use the v1 api for the
-        events as there is currently as per the Hubspot website
-        https://developers.hubspot.com/docs/api/events/email-analytics.
-        Once this is released we can transition over to using that.
         """
+        sort = [{"propertyName": "hs_lastmodifieddate", "direction": "DESCENDING"}]
         retry = 0
-        offset = None
+        after = None
         while True:
             try:
-                params = {
-                    "limit": EMAIL_BATCH_LIMIT,
-                    "offset": offset,
-                }
                 if filter_name:
-                    params[filter_name] = filter_value
+                    parameters[filter_name] = filter_value
 
-                response = requests.get(
-                    "https://api.hubapi.com/email/public/v1/events",
-                    headers={"Authorization": f"Bearer {self._access_token}"},
-                    params=params,
+                resp = self._find(
+                    "email",
+                    property_name=filter_name,
+                    value=filter_value,
+                    limit=limit,
+                    after=after,
+                    sort=sort,
                 )
-                response.raise_for_status()
-
-                response_json = response.json()
-
-                yield response_json.get("events", [])
-
-                # Update after to page onto next batch if there is next otherwise break as
-                # there are no more batches to iterate over.
-                offset = response_json.get("offset", False)
-                if not response_json.get("hasMore", False):
+                if not resp.results:
                     break
-                retry = 0
+
+                yield resp.results
+
+                if not resp.paging:
+                    break
+                after = resp.paging.next.after
+
             except HTTPError as e:
                 status_code = e.response.status_code
                 if retry >= RETRY_LIMIT:
@@ -319,6 +383,9 @@ class HubSpotClient:
             else:
                 after = None
 
+    def find_ticket(self, ticket_id):
+        return self._client.crm.tickets.basic_api.get_by_id(ticket_id)
+
     def find_all_deals(
         self,
         filter_name=None,
@@ -374,10 +441,9 @@ class HubSpotClient:
 
             # Update after to page onto next batch if there is next otherwise break as
             # there are no more batches to iterate over.
-            if response.paging:
-                after = response.paging.next.after
-            else:
-                after = None
+            if not response.paging:
+                break
+            after = response.paging.next.after
 
     def create_contact(self, email, first_name, last_name, **properties):
         properties = dict(
@@ -428,6 +494,45 @@ class HubSpotClient:
             )
         return response
 
+    def create_ticket(self, subject, **properties):
+        properties = dict(subject=subject, **properties)
+        response = self._create("ticket", properties)
+        return response
+
+    def create_email(
+        self,
+        hs_timestamp: Optional[datetime] = None,
+        hs_email_direction: Optional[str] = "EMAIL",
+        **properties,
+    ):
+        """
+        See documentation at https://developers.hubspot.com/docs/api/crm/email
+
+        :param hs_timestamp: This field marks the email's time of creation and determines where the email sits on the
+        record timeline. You can use either a Unix timestamp in milliseconds or UTC format. If not provided, then the
+        current time is used.
+        :param hs_email_direction: The direction the email was sent in. Possible values include:
+
+        EMAIL: the email was sent from the CRM or sent and logged to the CRM with the BCC address.
+        INCOMING_EMAIL: the email was a reply to a logged outgoing email.
+
+        FORWARDED_EMAIL: the email was forwarded to the CRM.
+        :param properties: Dictionary of properties as documented on hubspot
+        :return:
+        """
+        if not hs_timestamp:
+            hs_timestamp_int = int(datetime.now().timestamp())
+        else:
+            hs_timestamp_int = int(hs_timestamp.timestamp())
+
+        properties = dict(
+            hs_timestamp=hs_timestamp_int,
+            hs_email_direction=hs_email_direction,
+            **properties,
+        )
+        response = self._create("email", properties)
+        return response
+
     def delete_contact(self, value, property_name=None):
         try:
             public_gdpr_delete_input = PublicGdprDeleteInput(
@@ -454,6 +559,20 @@ class HubSpotClient:
             return api_response
         except ApiException as e:
             print(f"Exception when deleting deal: {e}\n")
+
+    def delete_ticket(self, ticket_id):
+        try:
+            api_response = self._client.crm.tickets.basic_api.archive(ticket_id)
+            return api_response
+        except ApiException as e:
+            print(f"Exception when deleting ticket: {e}\n")
+
+    def delete_email(self, email_id):
+        try:
+            api_response = self._client.crm.objects.emails.basic_api.archive(email_id)
+            return api_response
+        except ApiException as e:
+            print(f"Exception when deleting email: {e}\n")
 
     def update_company(self, object_id, **properties):
         response = self._update("company", object_id, properties)
@@ -488,7 +607,7 @@ class HubSpotClient:
             from_object_id,
             to_object_type,
             to_object_id,
-            get_association_id(from_object_type, to_object_type),
+            [],
         )
         return result
 

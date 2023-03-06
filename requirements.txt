@@ -1,8 +1,0 @@
-requests
-isort==5.10.1
-flake8==4.0.1
-black==22.3.0
-pytest==6.2.5
-python-dotenv==0.19.2
-hubspot-api-client==5.0.1
-
