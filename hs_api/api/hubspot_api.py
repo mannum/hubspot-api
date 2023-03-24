@@ -11,6 +11,7 @@ from hubspot.crm.contacts import (
     SimplePublicObjectInput,
 )
 from requests.exceptions import HTTPError
+import json
 
 from hs_api.settings.settings import HUBSPOT_ACCESS_TOKEN, HUBSPOT_PIPELINE_ID
 
@@ -318,6 +319,38 @@ class HubSpotClient:
                 after = response.paging.next.after
             else:
                 after = None
+
+    def find_all_contact_lists(
+            self
+    ):
+        offset = 0
+        limit = 100
+        total_count = float('inf')
+        all_lists = []
+
+        # Get the total number of lists
+        response = requests.get(
+            'https://api.hubapi.com/contacts/v1/lists',
+            params={'count': 0},
+            headers={'Authorization': f'Bearer {self._client.access_token}'}
+)
+        json_data = response.json()
+        all_lists = json_data['lists']
+
+        while 'offset' in json_data and json_data['has-more']:
+            offset = json_data['offset']
+            response = requests.get(
+                f'https://api.hubapi.com/contacts/v1/lists?count={limit}&offset={offset}',
+                headers={
+                    'Authorization': f'Bearer {self._client.access_token}'
+                }
+            )
+            json_data = response.json()
+            all_lists.extend(json_data['lists'])
+
+        return all_lists
+
+
 
     def find_all_deals(
         self,
