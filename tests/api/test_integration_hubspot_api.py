@@ -1,9 +1,9 @@
 import datetime
 import time
-import pytest
-from tenacity import retry
 
-from hs_api.api.hubspot_api import EMAIL_BATCH_LIMIT, BATCH_LIMITS, HubSpotClient
+import pytest
+
+from hs_api.api.hubspot_api import BATCH_LIMITS, EMAIL_BATCH_LIMIT, HubSpotClient
 from hs_api.settings.settings import (
     HUBSPOT_TEST_ACCESS_TOKEN,
     HUBSPOT_TEST_PIPELINE_ID,
@@ -73,19 +73,15 @@ def test_create_and_find_contact(hubspot_client):
     assert contact_result
     assert contact_result.id
 
-    # Added a retry loop because this test is failing 
-    for i in range(0,100):
-        while True:
-            try:
-                contact = hubspot_client.find_contact("hs_object_id", contact_result.id)
-                assert contact
-            except:
-                time.sleep(10)
-                continue
-            break
-        
-        
-        
+    # Added a retry loop because this test is failing
+    for i in range(0, 100):
+        print("attempt 1")
+        time.sleep(10)
+        contact = hubspot_client.find_contact("hs_object_id", contact_result.id)
+        assert contact
+        if not contact:
+            break 
+                
 
 
 def test_create_and_find_company(hubspot_client):
