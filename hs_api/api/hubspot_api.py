@@ -1,5 +1,5 @@
 import time
-
+from math import ceil
 import requests
 from hubspot import HubSpot
 from hubspot.auth.oauth import ApiException
@@ -11,7 +11,6 @@ from hubspot.crm.contacts import (
     SimplePublicObjectInput,
 )
 from requests.exceptions import HTTPError
-import json
 
 from hs_api.settings.settings import HUBSPOT_ACCESS_TOKEN, HUBSPOT_PIPELINE_ID
 
@@ -320,15 +319,51 @@ class HubSpotClient:
             else:
                 after = None
 
-    def find_all_contact_lists(
-            self
-    ):
-        offset = 0
+    def find_all_contacts_in_list(self, contact_list_id:str) -> object:
+        """
+        This function will return all contacts in a contact list. 
+        Simply supply the function with the id of the contact list and it will return an object containing all contacts within the list
+        It will iterate to get all contacts in batches of 100 
+        The number of batches is determined by the batch limit and the size (number of contacts) in the list
+        For contact lists with more than 100,000 contacts, we may need to consider memory contraints 
+        """
+
         limit = 100
-        total_count = float('inf')
+        all_contacts = []
+        offset = 0
+
+        # Lookup the contact list an get the size of the list
+        list_size = requests.get(
+            f"https://api.hubapi.com/contacts/v1/lists/{contact_list_id}",
+            headers={'Authorization': f'Bearer {self._client.access_token}'}
+        ).json()['metaData']['size']
+
+        batches = ceil(list_size/limit)
+
+        # go through each batch and add to the array
+        for i in range(batches):
+            offset = offset + 100 if i != 0 else 0
+            response = requests.get(
+                    f"https://api.hubapi.com/contacts/v1/lists/{contact_list_id}/contacts/all?count={limit}&offset={offset}",
+                    headers={'Authorization': f'Bearer {self._client.access_token}'}
+                )
+            json_data = response.json()
+            all_contacts.extend(json_data['contacts'])
+        
+        # return the json object
+        return all_contacts
+
+    def find_all_contact_lists(self) -> object:
+        """
+        This function will return all contact lists from hubspot
+        No additional parameters are required as this returns all lists 
+        We use a while loop to build up the list as there is a hard limit of 100 results per page
+        """
+        offset = 0
+        limit = 100 
         all_lists = []
 
-        # Get the total number of lists
+        # initially I thought it was possible to get the number of lists from an initial request 
         response = requests.get(
             'https://api.hubapi.com/contacts/v1/lists',
             params={'count': 0},
@@ -337,6 +372,8 @@ class HubSpotClient:
         json_data = response.json()
         all_lists = json_data['lists']
 
+        # Where offset appears in the json rsponse and where has-more is equal to true, make requests and add
+        # The response to the array to build up the json object
         while 'offset' in json_data and json_data['has-more']:
             offset = json_data['offset']
             response = requests.get(
