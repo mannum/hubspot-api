@@ -73,12 +73,9 @@ def test_create_and_find_contact(hubspot_client):
     assert contact_result
     assert contact_result.id
 
-    # Added a retry loop because this test is failing
-    for i in range(0, 100):
-        time.sleep(10)
-        contact = hubspot_client.find_contact("hs_object_id", contact_result.id)
-        if len(contact) > 0:
-            break
+    # Assert the contact now exists based on previous creation
+    time.sleep(20)
+    contact = hubspot_client.find_contact("hs_object_id", contact_result.id)
     assert contact
 
 
@@ -99,12 +96,8 @@ def test_create_and_find_company(hubspot_client):
     assert company_result.id
 
     # Assert the company now exists based on previous creation
-
-    for i in range(0, 100):
-        time.sleep(7)
-        company = hubspot_client.find_company("hs_object_id", company_result.id)
-        if len(company) > 0:
-            break
+    time.sleep(20)
+    company = hubspot_client.find_company("hs_object_id", company_result.id)
     assert company
 
 
@@ -177,7 +170,7 @@ def test_create_contact_and_associated_company_without_auto_created_company(
 
     # Assert the company and contact now exists based on previous creation
     # and are linked
-    time.sleep(7)
+    time.sleep(20)
     company = hubspot_client.find_company("hs_object_id", result["company"].id)
     assert company
     assert company[0].properties["name"] == TEST_COMPANY_NAME
