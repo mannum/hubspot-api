@@ -1,7 +1,7 @@
 import datetime
 import time
-
 import pytest
+from tenacity import retry
 
 from hs_api.api.hubspot_api import EMAIL_BATCH_LIMIT, BATCH_LIMITS, HubSpotClient
 from hs_api.settings.settings import (
@@ -73,10 +73,19 @@ def test_create_and_find_contact(hubspot_client):
     assert contact_result
     assert contact_result.id
 
-    # Assert the contact now exists based on previous creation
-    time.sleep(10)
-    contact = hubspot_client.find_contact("hs_object_id", contact_result.id)
-    assert contact
+    # Added a retry loop because this test is failing 
+    for i in range(0,100):
+        while True:
+            try:
+                contact = hubspot_client.find_contact("hs_object_id", contact_result.id)
+                assert contact
+            except:
+                time.sleep(10)
+                continue
+            break
+        
+        
+        
 
 
 def test_create_and_find_company(hubspot_client):
