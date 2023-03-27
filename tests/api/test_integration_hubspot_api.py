@@ -78,9 +78,9 @@ def test_create_and_find_contact(hubspot_client):
         print("attempt 1")
         time.sleep(10)
         contact = hubspot_client.find_contact("hs_object_id", contact_result.id)
-        assert contact
         if not contact:
             break
+    assert contact
 
 
 def test_create_and_find_company(hubspot_client):
