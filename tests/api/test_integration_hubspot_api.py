@@ -80,8 +80,7 @@ def test_create_and_find_contact(hubspot_client):
         contact = hubspot_client.find_contact("hs_object_id", contact_result.id)
         assert contact
         if not contact:
-            break 
-                
+            break
 
 
 def test_create_and_find_company(hubspot_client):
