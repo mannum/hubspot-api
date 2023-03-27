@@ -105,7 +105,7 @@ def test_create_and_find_company(hubspot_client):
         company = hubspot_client.find_company("hs_object_id", company_result.id)
         if len(company) > 0:
             break
-        assert company
+    assert company
 
 
 def test_create_contact_and_associated_company_with_auto_created_company(
