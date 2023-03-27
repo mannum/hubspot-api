@@ -43,11 +43,6 @@ from hs_api.api.hubspot_api import HubSpotClient
 client = HubSpotClient()
 ```
 
-You can also set the environment variables `HUBSPOT_ACCESS_TOKEN` and
-`HUBS_PIPELINE_ID` which will be used as defaults if no access_token or
-pipeline_id are passed to the `HubSpotClient`.
-
-
 More details on how to use the client can be found in the test cases that
 demonstrate how the api should work.
 
