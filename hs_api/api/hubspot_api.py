@@ -346,11 +346,16 @@ class HubSpotClient:
         for i in range(batches):
             offset = offset + 100 if i != 0 else 0
             response = requests.get(
-                f"https://api.hubapi.com/contacts/v1/lists/{contact_list_id}/contacts/all?count={limit}&offset={offset}", # noqa
+                f"https://api.hubapi.com/contacts/v1/lists/{contact_list_id}/contacts/all?count={limit}&offset={offset}",  # noqa
                 headers={"Authorization": f"Bearer {self._client.access_token}"},
             )
-            json_data = response.json()
-            all_contacts.extend(json_data["contacts"])
+            json_data = response.json()["contacts"]
+
+            # The list_id is not included in the response so we need to add this to the json_data for each line
+            for contact in json_data:
+                contact["contact-list-id"] = contact_list_id
+
+            all_contacts.extend(json_data)
 
         # return the json object
         return all_contacts
