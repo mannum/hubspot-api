@@ -11,7 +11,7 @@ More details around the inner workings of that and the wider Hubspot API can be 
 To install the package, run via pip:
 
 ```shell
-pip install git+https://github.com/mannum/hubspot-api.git@1.2.0
+pip install git+https://github.com/mannum/hubspot-api.git@1.2.2
 ```
 
 Be sure to specify the correct version you want to install.
