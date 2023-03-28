@@ -357,6 +357,7 @@ class HubSpotClient:
 
             all_contacts.extend(json_data)
 
+
         # return the json object
         return all_contacts
 
