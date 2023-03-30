@@ -346,11 +346,13 @@ class HubSpotClient:
         # go through each batch and add to the array
         for i in range(batches):
             response = requests.get(
+
                 f"https://api.hubapi.com/contacts/v1/lists/{contact_list_id}/contacts/all?count={limit}&vidOffset={vid_offset}",  # noqa
                 headers={"Authorization": f"Bearer {self._client.access_token}"},
             )
 
             vid_offset = response.json()["vid-offset"]
+
             json_data = response.json()["contacts"]
 
             # The list_id is not included in the response so we need to add this to the json_data for each line
@@ -364,6 +366,7 @@ class HubSpotClient:
             raise Exception(
                 "Number of contacts from response does not match the list size"
             )
+
 
         # return the json object
         return all_contacts
