@@ -325,14 +325,15 @@ class HubSpotClient:
         This function will return all contacts in a contact list.
         Simply supply the function with the id of the contact list and it will return an object containing
         all contacts within the list
-        It will iterate to get all contacts in batches of 100
+        It will iterate to get all contacts in batches of 100 as this is the maximum number of
+        results that can be returned from an API call
         The number of batches is determined by the batch limit and the size (number of contacts) in the list
         For contact lists with more than 100,000 contacts, we may need to consider memory contraints
         """
 
         limit = 100
         all_contacts = []
-        offset = 0
+        vid_offset = 0
 
         # Lookup the contact list an get the size of the list
         list_size = requests.get(
@@ -344,11 +345,13 @@ class HubSpotClient:
 
         # go through each batch and add to the array
         for i in range(batches):
-            offset = offset + 100 if i != 0 else 0
             response = requests.get(
-                f"https://api.hubapi.com/contacts/v1/lists/{contact_list_id}/contacts/all?count={limit}&offset={offset}",  # noqa
+                f"https://api.hubapi.com/contacts/v1/lists/{contact_list_id}/contacts/all?count={limit}&vidOffset={vid_offset}",  # noqa
                 headers={"Authorization": f"Bearer {self._client.access_token}"},
             )
+
+            vid_offset = response.json()["vid-offset"]
+
             json_data = response.json()["contacts"]
 
             # The list_id is not included in the response so we need to add this to the json_data for each line
@@ -356,6 +359,12 @@ class HubSpotClient:
                 contact["contact-list-id"] = contact_list_id
 
             all_contacts.extend(json_data)
+
+        # check if the number of contacts matches the response
+        if len(all_contacts) != list_size:
+            raise Exception(
+                "Number of contacts from response does not match the list size"
+            )
 
         # return the json object
         return all_contacts
