@@ -52,7 +52,6 @@ def test_pipeline_id_none_raises_value_error():
 
 
 def test_create_and_find_contact(hubspot_client):
-
     test_first_name = f"{UNIQUE_ID} first name"
     test_last_name = f"{UNIQUE_ID} last name"
     test_phone = f"{UNIQUE_ID}"
@@ -80,7 +79,6 @@ def test_create_and_find_contact(hubspot_client):
 
 
 def test_create_and_find_company(hubspot_client):
-
     test_domain = f"{UNIQUE_ID}.test"
 
     # Assert the company doesn't already exist
@@ -104,7 +102,6 @@ def test_create_and_find_company(hubspot_client):
 def test_create_contact_and_associated_company_with_auto_created_company(
     hubspot_client,
 ):
-
     test_first_name = f"{UNIQUE_ID} first name"
     test_last_name = f"{UNIQUE_ID} last name"
     test_phone = f"{UNIQUE_ID}"
@@ -143,7 +140,6 @@ def test_create_contact_and_associated_company_with_auto_created_company(
 def test_create_contact_and_associated_company_without_auto_created_company(
     hubspot_client,
 ):
-
     test_first_name = f"{UNIQUE_ID} first name"
     test_last_name = f"{UNIQUE_ID} last name"
     test_phone = f"{UNIQUE_ID}"
@@ -184,7 +180,6 @@ def test_create_contact_and_associated_company_without_auto_created_company(
 
 
 def test_create_and_find_deal(hubspot_client):
-
     test_amount = 99.99
 
     # Assert the deal doesn't already exist
@@ -207,7 +202,6 @@ def test_create_and_find_deal(hubspot_client):
 
 
 def test_create_deal_for_company(hubspot_client):
-
     test_amount = 99.99
 
     # Assert the deal and company don't already exist
@@ -243,7 +237,6 @@ def test_create_deal_for_company(hubspot_client):
 
 
 def test_create_deal_for_contact(hubspot_client):
-
     test_first_name = f"{UNIQUE_ID} first name"
     test_last_name = f"{UNIQUE_ID} last name"
     test_phone = f"{UNIQUE_ID}"
