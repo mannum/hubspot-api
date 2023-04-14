@@ -1,4 +1,5 @@
 # hubspot-api
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/mannum/hubspot-api)
 
 
 This hubspot api is a handy wrapper on top of the existing [hubspot python api](https://github.com/HubSpot/hubspot-api-python).
