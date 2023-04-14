@@ -11,7 +11,7 @@ More details around the inner workings of that and the wider Hubspot API can be 
 To install the package, run via pip:
 
 ```shell
-pip install git+https://github.com/mannum/hubspot-api.git@1.2.5
+pip install git+https://github.com/mannum/hubspot-api.git@1.3
 ```
 
 Be sure to specify the correct version you want to install.
@@ -38,7 +38,7 @@ HUBSPOT_PIPELINE_ID = 'my_pipeline_id'
 
 You can then define a new client for hubspot by using the following code
 ```python
-from hs_api.api.hubspot_api import HubSpotClient
+from hubspot_api import HubSpotClient
 
 client = HubSpotClient()
 ```
