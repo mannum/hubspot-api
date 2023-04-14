@@ -13,7 +13,7 @@ from hubspot.crm.contacts import (
 )
 from requests.exceptions import HTTPError
 
-from hs_api.settings.settings import HUBSPOT_ACCESS_TOKEN, HUBSPOT_PIPELINE_ID
+from src.hs_api.settings import HUBSPOT_ACCESS_TOKEN, HUBSPOT_PIPELINE_ID
 
 ASSOCIATION_TYPE_LOOKUP = {
     "contact-company": 1,
